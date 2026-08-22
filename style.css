@@ -518,7 +518,7 @@ main[id] {
   border:1px solid rgba(78,46,42,.15);
   box-shadow:0 2px 4px rgba(48,32,29,.12);
 }
-.polaroid img{border-radius:1px;width:100%;height:auto;}
+.polaroid img{border-radius:1px;width:100%;height:220px;object-fit:cover;display:block;}
 .polaroid figcaption{
   position:absolute;bottom:.65rem;left:0;right:0;
   text-align:center;
@@ -527,7 +527,6 @@ main[id] {
 }
 .polaroid-1{top:8%;left:4%;rotate:-7deg;z-index:3;}
 .polaroid-2{top:0;right:2%;rotate:6deg;z-index:2;}
-.polaroid-3{bottom:0;left:22%;rotate:3deg;z-index:1;}
 @media(hover:hover){
   .hero-gallery:hover .polaroid,
   .hero-gallery:focus-within .polaroid{
@@ -1324,7 +1323,14 @@ main[id] {
   }
   .hero-gallery {
     order: 2;
-    min-height: 240px;
+    min-height: 350px;
+    margin-top: 36px;
+  }
+  .polaroid-1 {
+    top: 50px !important;
+  }
+  .polaroid-2 {
+    top: 20px !important;
   }
   .hero-copy h1 {
     font-size: clamp(1.8rem, 7.5vw, 2.6rem);
@@ -1673,5 +1679,16 @@ main[id] {
   .hero-balloon,
   .testimonials-bear {
     display: none !important;
+  }
+}
+
+/* ── Mobile: hide coquette divider (renders as ugly thin line on small screens) ── */
+@media (max-width: 768px) {
+  .coquette-divider-container {
+    display: none !important;
+  }
+  /* Smaller polaroid image height on mobile */
+  .polaroid img {
+    height: 160px;
   }
 }

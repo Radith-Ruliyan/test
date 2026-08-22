@@ -1,7 +1,7 @@
 'use strict';
 
 /* ==========================================================================
-   D'amorr — Etalase Snack & Aksesoris Premium
+   D'amorr — Etalase Snack & aksesoriss Premium
    Vanilla JavaScript — tanpa library/framework
    ========================================================================== */
 
@@ -43,27 +43,27 @@ const PRODUCTS = [
     description: ''
   },
   {
-    id: 'Aksesoris-1',
+    id: 'aksesori-1',
     name: 'Gantungan Kunci Custom Nama',
-    category: 'Aksesoris',
+    category: 'aksesori',
     price: 10000,
     image: 'assets/product/Aksesoris1.png',
     badge: '',
     description: ''
   },
   {
-    id: 'Aksesoris-2',
+    id: 'aksesori-2',
     name: 'Gantungan Kunci Custom Spotify',
-    category: 'Aksesoris',
+    category: 'aksesori',
     price: 10000,
     image: 'assets/product/Aksesoris2.png',
     badge: '',
     description: ''
   },
   {
-    id: 'Aksesoris-3',
+    id: 'aksesori-3',
     name: 'Gantungan Kunci Custom Foto',
-    category: 'Aksesoris',
+    category: 'aksesori',
     price: 10000,
     image: 'assets/product/Aksesoris3.png',
     badge: '',
