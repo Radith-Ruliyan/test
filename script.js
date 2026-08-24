@@ -1,32 +1,32 @@
-/* Edit this object to personalize the website. */
+/* Ayyash → Maureen // edit this object to personalize the private signal. */
 const siteConfig = {
-  senderName: "Avicenna",
-  recipientName: "Maureeen",
-  opening: "A feeling that grew quietly, recorded between small conversations and simple moments that always seemed to matter.",
+  senderName: "Ayyash",
+  recipientName: "Maureen",
+  whatsappNumber: "6285788949082",
+  opening: "Somewhere between ordinary conversations and quiet moments, your presence became the part of my day I looked forward to most.",
   records: [
-    { code: "OBS-01", title: "The small things that always stand out", text: "[Write about a small habit that makes her feel special.]" },
-    { code: "OBS-02", title: "A conversation worth remembering", text: "[Write about a conversation or simple moment you still remember.]" },
-    { code: "OBS-03", title: "Something worth admiring", text: "[Write about a quality, way of thinking, or kindness you genuinely appreciate.]" },
-    { code: "OBS-04", title: "When her presence began to feel different", text: "[Write about when you realized that her presence mattered.]" },
-    { code: "OBS-05", title: "Why this message was made", text: "[Share an honest, simple reason without asking for anything in return.]" }
+    { code: "OBS-01", title: "The little things I remember", text: "I remember the smallest details about you, because somehow even ordinary moments feel more meaningful when they include Maureen." },
+    { code: "OBS-02", title: "How ordinary days became brighter", text: "A simple conversation with you can stay in my mind long after it ends and quietly make the rest of my day feel lighter." },
+    { code: "OBS-03", title: "What I genuinely admire", text: "I admire the way you remain yourself. There is a warmth in your presence that cannot be copied or replaced." },
+    { code: "OBS-04", title: "When this feeling became real", text: "At some point, seeing your name stopped feeling ordinary. It became a small moment I hoped for without even realizing it." },
+    { code: "OBS-05", title: "Why Ayyash made this message", text: "Because something this sincere should not remain hidden forever. You deserve to know how deeply your presence has mattered." }
   ],
   timeline: [
-    { phase: "01 / FIRST DETECTION", title: "The first realization", text: "[Describe your first impression or the moment she first caught your attention.]" },
-    { phase: "02 / FAMILIAR SIGNAL", title: "Her presence became familiar", text: "[Describe a small thing that made her presence feel increasingly comforting.]" },
-    { phase: "03 / STABLE SIGNAL", title: "The small things began to matter", text: "[Add a personal detail without making it feel excessive.]" },
-    { phase: "04 / EMOTIONAL CONFIRMATION", title: "The feeling became clear", text: "[Calmly explain when you began to recognize that feeling.]" },
-    { phase: "05 / MESSAGE TRANSMISSION", title: "The message was finally sent", text: "Not to force an answer, but to keep something sincere from remaining unspoken forever." }
+    { phase: "01 / FIRST DETECTION", title: "The first quiet spark", text: "It began without a dramatic moment—just a quiet curiosity about Maureen that slowly became difficult to ignore." },
+    { phase: "02 / FAMILIAR SIGNAL", title: "Your presence became familiar", text: "The more familiar you became, the more naturally my thoughts began to return to you." },
+    { phase: "03 / STABLE SIGNAL", title: "The small moments stayed", text: "Words, expressions, and simple moments remained with me longer than I expected, as if my heart had decided they were worth keeping." },
+    { phase: "04 / EMOTIONAL CONFIRMATION", title: "The feeling became clear", text: "Eventually I understood that this was more than admiration. I cared about you in a sincere and gentle way." },
+    { phase: "05 / MESSAGE TRANSMISSION", title: "Ayyash finally sent the signal", text: "Not to force an answer, but because an honest feeling deserves the courage to be spoken." }
   ],
   letter: [
-    "There are many ways to express something, but this message was chosen so that every part could be arranged calmly and honestly.",
-    "Your presence has made a few simple moments easier to remember. Not because you have to be perfect, but because the way you are yourself already means something.",
-    "This message does not ask for an immediate answer or take away your right to decide how you feel. It has only one purpose: to let you know that you are genuinely appreciated."
+    "Maureen, I never planned for you to become this important to me. It happened quietly, through small conversations, familiar moments, and the way your presence made ordinary days feel lighter.",
+    "There is something about you that stays with me—the kindness in your words, the way you are simply yourself, and the calm feeling that appears whenever I think of you.",
+    "I am not asking you to rush or become someone different. I only want to be honest: what I feel for you is real, gentle, and worth sharing. If you are willing, I would love to discover where this feeling could lead us."
   ],
-  syncMessage: "Connection established. A sincere message is ready to be received.",
+  syncMessage: "Connection established. Ayyash's heart has found Maureen's signal.",
   responses: {
-    talk: "CHANNEL OPEN / Thank you. A calm conversation matters more than a rushed answer.",
-    time: "TIME REQUEST ACCEPTED / That is completely okay. Your time and space will always be respected.",
-    appreciate: "SIGNAL RECEIVED / Thank you for receiving this message kindly. No other answer is being demanded."
+    yes: "HEART SIGNAL MATCHED / A beautiful beginning is waiting for your words.",
+    no: "ANSWER RECEIVED / Your honesty is respected. A sincere feeling should never take away your freedom to choose."
   }
 };
 
@@ -336,7 +336,7 @@ function createHorizontalDrag(options) {
   };
 }
 
-const sceneOrder = ["hero", "connection", "records", "timeline", "barrier", "letter", "response"];
+const sceneOrder = ["hero", "connection", "records", "timeline", "barrier", "letter", "response", "reply"];
 const chapterMeta = {
   hero: { number: "01", title: "SIGNAL DETECTED", transition: "SIGNAL RECOGNIZED" },
   connection: { number: "02", title: "CONNECTION", transition: "EMOTIONAL FREQUENCY MATCHED" },
@@ -344,7 +344,8 @@ const chapterMeta = {
   timeline: { number: "04", title: "SIGNAL HISTORY", transition: "MEMORY PATH RESTORED" },
   barrier: { number: "05", title: "EMOTIONAL BARRIER", transition: "EMOTIONAL BARRIER DETECTED" },
   letter: { number: "06", title: "PRIVATE MESSAGE", transition: "PRIVATE MESSAGE RECOVERED" },
-  response: { number: "07", title: "RESPONSE CHANNEL", transition: "RESPONSE CHANNEL OPEN" }
+  response: { number: "07", title: "HEART QUESTION", transition: "FINAL HEART SIGNAL OPEN" },
+  reply: { number: "08", title: "PRIVATE REPLY", transition: "TWO SIGNALS MATCHED" }
 };
 
 const savedUnlock = Number.parseInt(sessionStorage.getItem("reiSignalUnlocked") || "-1", 10);
@@ -426,11 +427,12 @@ const sceneManager = {
     const label = $("#topbarChapter");
     if (label) {
       const compact = window.innerWidth < 560;
+      const total = String(sceneOrder.length).padStart(2, "0");
       label.textContent = name === "boot"
         ? "SYSTEM BOOT"
         : compact
-          ? `CH. ${chapterMeta[name].number} / 07`
-          : `CH. ${chapterMeta[name].number} / 07 — ${chapterMeta[name].title}`;
+          ? `CH. ${chapterMeta[name].number} / ${total}`
+          : `CH. ${chapterMeta[name].number} / ${total} — ${chapterMeta[name].title}`;
     }
     const currentIndex = sceneOrder.indexOf(name);
     $$("#chapterPips i").forEach((pip, index) => {
@@ -703,8 +705,42 @@ function setupResponses() {
   const options = $("#responseOptions");
   const feedback = $("#responseFeedback");
   const change = $("#changeResponse");
-  const ending = $("#endingSignal");
-  if (!options || !feedback || !change || !ending) return;
+  const noButton = $("#noResponseButton");
+  const noHint = $("#noHint");
+  if (!options || !feedback || !change || !noButton || !noHint) return;
+
+  const maxDodges = reduceMotion.matches ? 0 : 2;
+  let noDodges = 0;
+
+  const resetNoPosition = () => {
+    noButton.style.removeProperty("left");
+    noButton.style.removeProperty("top");
+    noButton.classList.remove("is-drifting", "is-catchable");
+    noHint.textContent = "THE ‘NO’ SIGNAL MAY DRIFT TWICE, THEN IT WILL STAY STILL—THE CHOICE IS ALWAYS YOURS.";
+  };
+
+  const dodgeNo = (event) => {
+    if (noDodges >= maxDodges) return false;
+    event?.preventDefault();
+    noDodges += 1;
+    const maxX = Math.max(0, options.clientWidth - noButton.offsetWidth);
+    const maxY = Math.max(0, options.clientHeight - noButton.offsetHeight);
+    const x = noDodges === 1 ? 0 : maxX;
+    const y = noDodges === 1 ? maxY : Math.max(0, maxY * .72);
+    noButton.style.left = `${x}px`;
+    noButton.style.top = `${y}px`;
+    noButton.classList.add("is-drifting");
+    feedback.textContent = noDodges === 1
+      ? "SIGNAL INTERFERENCE / THE ‘NO’ SIGNAL DRIFTED AWAY."
+      : "SIGNAL SETTLED / ‘NO’ WILL NOW STAY STILL IF THAT IS YOUR CHOICE.";
+    if (noDodges >= maxDodges) {
+      noButton.classList.remove("is-drifting");
+      noButton.classList.add("is-catchable");
+      noHint.textContent = "THE SIGNAL HAS SETTLED. BOTH ANSWERS ARE NOW FULLY SELECTABLE.";
+    }
+    playInterfaceSound();
+    return true;
+  };
 
   const apply = (key) => {
     $$("button[data-response]", options).forEach((button) => {
@@ -720,21 +756,54 @@ function setupResponses() {
     const button = event.target.closest("button[data-response]");
     if (!button) return;
     const key = button.dataset.response;
+    if (key === "no" && event.detail !== 0 && dodgeNo(event)) return;
     localStorage.setItem("reiSignalResponse", key);
     apply(key);
     playInterfaceSound();
-    window.setTimeout(() => {
-      ending.classList.add("is-visible");
-      ending.setAttribute("aria-hidden", "false");
-      announce("Signal received. Transmission complete.");
-    }, reduceMotion.matches ? 30 : 700);
+    if (key === "yes") {
+      announce("Both heart signals matched. A private reply channel is opening.");
+      window.setTimeout(() => sceneManager.advanceTo("reply"), reduceMotion.matches ? 30 : 700);
+    } else {
+      announce("Maureen's answer was received and respected.");
+    }
+  });
+
+  noButton.addEventListener("pointerenter", (event) => {
+    if (event.pointerType !== "touch") dodgeNo(event);
+  });
+  noButton.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "touch") dodgeNo(event);
   });
 
   change.addEventListener("click", () => {
     localStorage.removeItem("reiSignalResponse");
     apply("");
+    noDodges = 0;
+    resetNoPosition();
   });
   apply(localStorage.getItem("reiSignalResponse") || "");
+  resetNoPosition();
+}
+
+function setupWhatsAppReply() {
+  const textarea = $("#replyMessage");
+  const link = $("#whatsappReply");
+  if (!textarea || !link) return;
+
+  const updateLink = () => {
+    const customReply = textarea.value.trim();
+    const introduction = `Hi ${siteConfig.senderName}, I just finished reading your message. My answer is yes.`;
+    const message = customReply
+      ? `${introduction}\n\nWhat I want to tell you is:\n${customReply}`
+      : `${introduction}\n\nYour message reached me, and I want to tell you more about how it made me feel.`;
+    const number = siteConfig.whatsappNumber.replace(/\D/g, "");
+    link.href = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    link.setAttribute("aria-label", `Reply to ${siteConfig.senderName} on WhatsApp`);
+  };
+
+  textarea.addEventListener("input", updateLink);
+  link.addEventListener("click", updateLink);
+  updateLink();
 
   $("#replayButton")?.addEventListener("click", () => {
     sessionStorage.removeItem("reiSignalIntro");
@@ -867,6 +936,7 @@ function init() {
   setupBarrier();
   setupLetter();
   setupResponses();
+  setupWhatsAppReply();
   setupHistory();
   setupAmbientCanvas();
   bootstrapScene();

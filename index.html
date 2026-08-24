@@ -1,11 +1,12 @@
 <!doctype html>
+<!-- Ayyash to Maureen // private emotional signal -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#c9f5ff">
-  <meta name="description" content="A cinematic personal signal and confession experience.">
-  <title>REI SIGNAL // Private Transmission</title>
+  <meta name="description" content="A personal love signal from Ayyash to Maureen.">
+  <title>Ayyash → Maureen // Private Signal</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
@@ -58,7 +59,7 @@
       <span class="scene-code" aria-hidden="true">01</span>
       <div class="hero-copy">
         <p class="eyebrow"><span>SUBJECT 00</span> PRIVATE TRANSMISSION</p>
-        <h1>A signal<br>for <em data-recipient>[HER NAME]</em></h1>
+        <h1>A signal<br>for <em data-recipient>Maureen</em></h1>
         <p class="hero-lead" data-opening>A feeling that grew quietly, recorded between small conversations and simple moments that always seemed to matter.</p>
       </div>
       <div class="hero-art asset-frame" data-asset="assets/rei-hero.png">
@@ -71,8 +72,8 @@
         <div class="interaction-copy"><strong>BRING THE TWO SIGNALS TOGETHER</strong><small>DRAG THE BLUE SIGNAL TOWARD THE PINK SIGNAL</small></div>
         <div class="signal-align__track" id="heroSignalTrack">
           <i class="signal-align__beam" id="heroSignalBeam" aria-hidden="true"></i>
-          <button class="signal-align__node signal-align__node--sender" id="heroSignalHandle" type="button" aria-label="Drag sender signal toward receiver signal"><span>A</span><small>SENDER</small></button>
-          <div class="signal-align__node signal-align__node--receiver" id="heroSignalTarget" aria-hidden="true"><span>M</span><small data-recipient>[HER NAME]</small></div>
+          <button class="signal-align__node signal-align__node--sender" id="heroSignalHandle" type="button" aria-label="Drag Ayyash's signal toward Maureen's signal"><span>A</span><small data-sender>Ayyash</small></button>
+          <div class="signal-align__node signal-align__node--receiver" id="heroSignalTarget" aria-hidden="true"><span>M</span><small data-recipient>Maureen</small></div>
           <span class="signal-align__distance" aria-hidden="true">SIGNAL DISTANCE / <b id="heroSignalDistance">100</b></span>
         </div>
       </div>
@@ -87,10 +88,10 @@
       <div class="sync-panel" id="syncPanel">
         <div class="sync-panel__header"><span>SYNCHRONIZATION TEST</span><span id="syncStatus">CONNECTION STANDBY</span></div>
         <div class="sync-stage">
-          <div class="signal-node"><span>A</span><small>SENDER</small></div>
+          <div class="signal-node"><span>A</span><small data-sender>Ayyash</small></div>
           <div class="sync-path" aria-hidden="true"><i id="syncLine"></i><b></b></div>
           <div class="field-gate" aria-hidden="true"><i></i><i></i><i></i></div>
-          <div class="signal-node"><span>M</span><small data-recipient>[HER NAME]</small></div>
+          <div class="signal-node"><span>M</span><small data-recipient>Maureen</small></div>
         </div>
         <div class="sync-readout"><strong><span id="syncValue">00</span>%</strong><small>EMOTIONAL LINK</small></div>
         <p class="sync-message" id="syncMessage" aria-live="polite">The signal has not been sent yet.</p>
@@ -167,13 +168,13 @@
       <span class="scene-code" aria-hidden="true">06</span>
       <article class="letter-card">
         <div class="letter-card__top"><span>UNSENT MESSAGE / RECOVERED</span><span>PRIVATE</span></div>
-        <p class="eyebrow"><span>TO</span> <b data-recipient>[HER NAME]</b></p>
+        <p class="eyebrow"><span>TO</span> <b data-recipient>Maureen</b></p>
         <h2>A message beyond<br><em>the interface.</em></h2>
         <div class="letter-fragment">
           <span id="letterCounter">MESSAGE FRAGMENT 01 / 03</span>
           <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
         </div>
-        <div class="letter-signature">— <span data-sender>[YOUR NAME]</span></div>
+        <div class="letter-signature">— <span data-sender>Ayyash</span></div>
       </article>
       <button class="message-seal" id="letterSeal" type="button" aria-label="Hold to recover the next message fragment">
         <span class="message-seal__rings" aria-hidden="true"><i></i><i></i><b>00</b></span>
@@ -184,22 +185,32 @@
     <section class="scene scene--response" data-scene="response" data-chapter="07" aria-label="Response channel" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">07</span>
       <div class="response-panel">
-        <p class="eyebrow"><span>FINAL PHASE</span> RESPONSE CHANNEL</p>
-        <h2>You do not have to answer<br><em>right now.</em></h2>
-        <p class="response-lead">This choice stays on this device and is not automatically sent to anyone.</p>
-        <div class="response-options" id="responseOptions">
-          <button type="button" data-response="talk"><i aria-hidden="true"></i><span>I would like to talk about it</span></button>
-          <button type="button" data-response="time"><i aria-hidden="true"></i><span>I need a little time</span></button>
-          <button type="button" data-response="appreciate"><i aria-hidden="true"></i><span>I appreciate your honesty</span></button>
+        <p class="eyebrow"><span>HEART SIGNAL</span> A QUESTION FROM <b data-sender>AYYASH</b></p>
+        <h2><span data-recipient>Maureen</span>, will you accept<br><em>my love?</em></h2>
+        <p class="response-lead">Every quiet signal on this page carries one honest truth: knowing you made ordinary days feel brighter. There is no pressure in this question—only Ayyash's hope that this feeling could become the first page of a story you both choose.</p>
+        <div class="response-options response-options--binary" id="responseOptions" aria-label="Choose your answer to Ayyash">
+          <button class="response-yes" type="button" data-response="yes"><i aria-hidden="true"></i><span>YES — LET'S BEGIN OUR STORY</span></button>
+          <button class="response-no" id="noResponseButton" type="button" data-response="no"><i aria-hidden="true"></i><span>NO — I DON'T FEEL THE SAME</span></button>
         </div>
+        <small class="no-hint" id="noHint">THE “NO” SIGNAL MAY DRIFT TWICE, THEN IT WILL STAY STILL—THE CHOICE IS ALWAYS YOURS.</small>
         <p class="response-feedback" id="responseFeedback" aria-live="polite">RESPONSE CHANNEL / WAITING</p>
         <button class="text-button" id="changeResponse" type="button" hidden>CHANGE LOCAL RESPONSE</button>
       </div>
-      <div class="ending-signal" id="endingSignal" aria-hidden="true">
-        <div class="ending-signal__orbits" aria-hidden="true"><i>A</i><i>M</i><b></b></div>
-        <strong>SIGNAL RECEIVED</strong>
-        <span>A QUIET CONNECTION REMAINS</span>
-        <small>TRANSMISSION BY <b data-sender>[YOUR NAME]</b></small>
+    </section>
+
+    <section class="scene scene--reply" data-scene="reply" data-chapter="08" aria-label="Reply to Ayyash" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">08</span>
+      <div class="reply-panel">
+        <p class="eyebrow"><span>ANSWER RECEIVED</span> TWO SIGNALS / ONE BEGINNING</p>
+        <div class="reply-orbits" aria-hidden="true"><i>A</i><i>M</i><b></b></div>
+        <h2>Your answer reached<br><em data-sender>Ayyash.</em></h2>
+        <p class="reply-lead">Ayyash has shared the words he kept quietly in his heart. Now the next words can be yours—tell him what this message made you feel.</p>
+        <label class="reply-label" for="replyMessage">WHAT WOULD YOU LIKE AYYASH TO KNOW?</label>
+        <textarea id="replyMessage" maxlength="700" placeholder="Write something for Ayyash..."></textarea>
+        <a class="whatsapp-button" id="whatsappReply" href="https://wa.me/6285788949082" target="_blank" rel="noopener noreferrer">
+          <span>REPLY TO AYYASH ON WHATSAPP</span><small>OPEN PRIVATE CHAT / +62 857-8894-9082</small>
+        </a>
+        <small class="reply-note">WHATSAPP WILL OPEN WITH YOUR MESSAGE PREPARED. NOTHING IS SENT UNTIL YOU PRESS SEND.</small>
         <button class="text-button" id="replayButton" type="button">REPLAY TRANSMISSION</button>
       </div>
     </section>

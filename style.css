@@ -1,3 +1,4 @@
+/* Ayyash → Maureen // private signal interface */
 @import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap");
 
 :root {
@@ -323,17 +324,33 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
 .response-options button i { width: 19px; height: 19px; border: 1px solid var(--blue); border-radius: 50%; }
 .response-options button.is-selected { color: var(--sky-0); background: var(--ink); }
 .response-options button.is-selected i { border: 5px solid var(--sky-0); background: var(--red); }
+.response-options--binary { position: relative; display: block; min-height: 138px; overflow: visible; }
+.response-options--binary button { position: absolute; top: 8px; width: calc(50% - 5px); min-height: 58px; transition: left .24s var(--ease), top .24s var(--ease), transform .2s var(--ease), background .2s; }
+.response-yes { left: 0; }
+.response-no { left: calc(50% + 5px); }
+.response-no.is-drifting { color: var(--ink); background: var(--sky-2); box-shadow: 0 0 0 5px rgba(79,210,255,.2); }
+.response-no.is-catchable { border-color: var(--red); }
+.no-hint { display: block; min-height: 16px; font: 500 6px/1.5 var(--mono); letter-spacing: .05em; color: var(--ink-soft); opacity: .66; }
 .response-feedback { min-height: 32px; font: 600 8px/1.45 var(--mono); letter-spacing: .04em; color: var(--red); }
 .text-button { min-height: 42px; padding: 6px 2px; border: 0; border-bottom: 1px solid currentColor; background: transparent; font: 600 8px var(--mono); letter-spacing: .08em; cursor: pointer; }
-.ending-signal { position: absolute; z-index: 5; inset: calc(var(--safe-top) + var(--topbar-h) + 12px) var(--pad-x) calc(var(--safe-bottom) + 12px); padding: 18px; border: 1px solid var(--ink); background: rgba(222,249,255,.96); display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; opacity: 0; visibility: hidden; transform: scale(.96); transition: opacity .5s, transform .5s, visibility .5s; }
-.ending-signal.is-visible { opacity: 1; visibility: visible; transform: none; }
-.ending-signal__orbits { position: relative; width: min(48vw, 190px); height: 100px; }
-.ending-signal__orbits i { position: absolute; top: 12px; width: 72px; height: 72px; border: 2px solid var(--blue); border-radius: 50%; display: grid; place-items: center; font: 400 20px var(--display); }
-.ending-signal__orbits i:first-child { left: 12%; }
-.ending-signal__orbits i:nth-child(2) { right: 12%; border-color: var(--red); }
-.ending-signal__orbits b { position: absolute; left: 50%; top: 48px; width: 26px; height: 26px; border-radius: 50%; background: var(--green); transform: translate(-50%, -50%); box-shadow: 0 0 0 14px rgba(0,215,173,.12); }
-.ending-signal > strong { font: 400 clamp(30px, 9vw, 54px) var(--display); color: var(--red); }
-.ending-signal > span, .ending-signal > small { font: 600 8px var(--mono); letter-spacing: .1em; }
+.scene--reply { place-items: center; }
+.reply-panel { position: relative; z-index: 2; width: min(100%, 620px); min-height: 0; display: grid; justify-items: stretch; gap: clamp(7px, 1.4vh, 12px); }
+.reply-panel h2 { font-size: clamp(28px, 8.8vw, 52px); }
+.reply-lead { max-width: 52ch; font-size: clamp(12px, 3.5vw, 15px); line-height: 1.55; color: var(--ink-soft); }
+.reply-orbits { position: relative; justify-self: center; width: 146px; height: 68px; }
+.reply-orbits i { position: absolute; top: 4px; width: 58px; height: 58px; border: 2px solid var(--blue); border-radius: 50%; display: grid; place-items: center; font: 400 16px var(--display); background: rgba(249,254,255,.72); }
+.reply-orbits i:first-child { left: 16px; }
+.reply-orbits i:nth-child(2) { right: 16px; border-color: var(--red); }
+.reply-orbits b { position: absolute; z-index: 2; left: 50%; top: 33px; width: 18px; height: 18px; border-radius: 50%; background: var(--green); transform: translate(-50%, -50%); box-shadow: 0 0 0 10px rgba(0,215,173,.14); }
+.reply-label { font: 600 7px var(--mono); letter-spacing: .1em; color: var(--red); }
+#replyMessage { width: 100%; min-height: 94px; max-height: 142px; resize: vertical; padding: 12px 13px; border: 1px solid var(--ink); border-radius: 0; background: rgba(255,255,255,.65); color: var(--ink); font: 500 13px/1.55 var(--body); }
+#replyMessage::placeholder { color: var(--ink-soft); opacity: .5; }
+.whatsapp-button { position: relative; min-height: 58px; padding: 10px 14px; border: 1px solid var(--ink); background: var(--ink); color: var(--sky-0); display: grid; place-content: center; gap: 3px; text-align: center; text-decoration: none; }
+.whatsapp-button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--green); }
+.whatsapp-button span { font: 600 9px var(--mono); letter-spacing: .07em; }
+.whatsapp-button small { font: 500 6px var(--mono); letter-spacing: .05em; opacity: .64; }
+.reply-note { text-align: center; font: 500 6px/1.5 var(--mono); letter-spacing: .05em; opacity: .58; }
+.reply-panel > .text-button { justify-self: center; }
 
 .chapter-transition { position: fixed; z-index: 500; inset: 0; height: var(--app-height); display: grid; place-items: center; overflow: hidden; color: var(--sky-0); background: radial-gradient(circle at 50% 50%, var(--blue-deep), var(--ink) 72%); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .16s, visibility .16s; }
 .chapter-transition.is-active { opacity: 1; visibility: visible; }
@@ -403,6 +420,13 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .response-panel { gap: 7px; }
   .response-options { gap: 6px; }
   .response-options button { min-height: 46px; padding-block: 7px; }
+  .response-options--binary { min-height: 112px; }
+  .reply-panel { gap: 6px; }
+  .reply-orbits { height: 54px; transform: scale(.82); transform-origin: center; }
+  .reply-panel h2 { font-size: clamp(24px, 7.6vw, 38px); }
+  .reply-lead { font-size: 12px; line-height: 1.45; }
+  #replyMessage { min-height: 72px; }
+  .whatsapp-button { min-height: 52px; }
 }
 
 @media (max-height: 580px) {
@@ -424,7 +448,14 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .message-seal { min-height: 64px; }
   .response-lead { font-size: 11px; }
   .response-options button { min-height: 42px; }
+  .response-options--binary { min-height: 96px; }
   .response-feedback { min-height: 24px; }
+  .reply-orbits { display: none; }
+  .reply-panel h2 { font-size: 22px; }
+  .reply-lead { font-size: 11px; line-height: 1.4; }
+  #replyMessage { min-height: 58px; max-height: 74px; padding: 8px 10px; }
+  .whatsapp-button { min-height: 46px; padding-block: 7px; }
+  .reply-note { display: none; }
 }
 
 @media (min-width: 760px) {
