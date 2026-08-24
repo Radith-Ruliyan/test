@@ -40,49 +40,17 @@ function announce(message) {
   if (region) region.textContent = message;
 }
 
+/* ==========================================================================
+   CONTENT
+   ========================================================================== */
 function applyConfig() {
   $$('[data-recipient]').forEach((node) => { node.textContent = siteConfig.recipientName; });
   $$('[data-sender]').forEach((node) => { node.textContent = siteConfig.senderName; });
   const opening = $('[data-opening]');
   if (opening) opening.textContent = siteConfig.opening;
-  renderRecords();
-  renderTimeline();
+  renderRecordDots();
+  renderTimelineDots();
   renderLetter();
-}
-
-function renderRecords() {
-  const grid = $("#recordGrid");
-  if (!grid) return;
-  const fragment = document.createDocumentFragment();
-  siteConfig.records.forEach((record, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "record-card reveal";
-    button.dataset.code = record.code;
-    button.setAttribute("aria-expanded", "false");
-
-    const number = document.createElement("span");
-    number.className = "record-card__number";
-    number.textContent = String(index + 1).padStart(2, "0");
-    const title = document.createElement("h3");
-    title.textContent = record.title;
-    const reveal = document.createElement("span");
-    reveal.className = "record-card__reveal";
-    reveal.textContent = record.text;
-    const status = document.createElement("span");
-    status.className = "record-card__status";
-    status.textContent = "CLICK TO DECRYPT";
-
-    button.append(number, title, reveal, status);
-    button.addEventListener("click", () => {
-      const open = button.classList.toggle("is-open");
-      button.setAttribute("aria-expanded", String(open));
-      status.textContent = open ? "RECORD DECRYPTED" : "CLICK TO DECRYPT";
-      if (open) decryptText(reveal, record.text);
-    });
-    fragment.append(button);
-  });
-  grid.append(fragment);
 }
 
 function decryptText(element, finalText) {
@@ -105,32 +73,23 @@ function decryptText(element, finalText) {
   }, 22);
 }
 
-function renderTimeline() {
-  const list = $("#timelineList");
-  if (!list) return;
-  const fragment = document.createDocumentFragment();
-  siteConfig.timeline.forEach((item) => {
-    const article = document.createElement("article");
-    article.className = "timeline-item";
-    const phase = document.createElement("small");
-    phase.textContent = item.phase;
-    const title = document.createElement("h3");
-    title.textContent = item.title;
-    const text = document.createElement("p");
-    text.textContent = item.text;
-    article.append(phase, title, text);
-    fragment.append(article);
-  });
-  list.append(fragment);
-}
-
 function renderLetter() {
   const copy = $("#letterCopy");
   if (!copy) return;
+  copy.innerHTML = "";
   siteConfig.letter.forEach((text) => {
     const paragraph = document.createElement("p");
     paragraph.textContent = text;
     copy.append(paragraph);
+  });
+}
+
+let letterRevealed = false;
+function revealLetterOnce() {
+  if (letterRevealed) return;
+  letterRevealed = true;
+  $$("#letterCopy p").forEach((paragraph, index) => {
+    window.setTimeout(() => paragraph.classList.add("is-visible"), reduceMotion.matches ? 0 : index * 480);
   });
 }
 
@@ -146,101 +105,95 @@ function setupAssetFallbacks() {
   });
 }
 
-function setupBoot() {
-  const screen = $("#bootScreen");
-  const bar = $("#bootBar");
-  const percent = $("#bootPercent");
-  const log = $("#bootLog");
-  const enter = $("#enterButton");
-  const skip = $("#skipButton");
-  if (!screen || !bar || !percent || !log || !enter || !skip) return;
-  document.body.classList.add("boot-open");
-  const logs = [
-    "INITIALIZING PRIVATE TRANSMISSION...",
-    "EMOTIONAL SIGNAL DETECTED...",
-    "UNKNOWN EMOTIONAL PATTERN FOUND...",
-    "RECIPIENT IDENTITY LOADED...",
-    "UNSENT MESSAGE RECOVERED...",
-    "TRANSMISSION READY."
-  ];
-  let value = reduceMotion.matches ? 100 : 0;
-  let timer;
-  const finish = () => {
-    value = 100;
-    bar.style.width = "100%";
-    percent.textContent = "100";
-    log.textContent = logs.at(-1);
-    enter.disabled = false;
-  };
-  const close = () => {
-    clearInterval(timer);
-    screen.classList.add("is-closed");
-    document.body.classList.remove("boot-open");
-    sessionStorage.setItem("reiSignalIntro", "seen");
-    window.setTimeout(() => $(".hero__copy")?.focus?.(), 500);
-  };
-  if (value === 100) finish();
-  else {
-    timer = window.setInterval(() => {
-      value = Math.min(100, value + Math.ceil(Math.random() * 5));
-      bar.style.width = `${value}%`;
-      percent.textContent = String(value).padStart(2, "0");
-      log.textContent = logs[Math.min(logs.length - 1, Math.floor(value / 20))];
-      if (value >= 100) {
-        clearInterval(timer);
-        finish();
-      }
-    }, 105);
-  }
-  enter.addEventListener("click", () => {
-    startAmbientAudio();
-    close();
-  });
-  skip.addEventListener("click", () => {
-    finish();
-    startAmbientAudio();
-    close();
+/* ==========================================================================
+   RECORDS (single-item pager)
+   ========================================================================== */
+function renderRecordDots() {
+  const wrap = $("#recordDots");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  siteConfig.records.forEach((record, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", `Record ${index + 1} of ${siteConfig.records.length}`);
+    button.addEventListener("click", () => {
+      sceneManager.state.recordIndex = index;
+      showRecord(index);
+      playInterfaceSound();
+    });
+    wrap.append(button);
   });
 }
 
-function setupRevealObservers() {
-  const revealObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("is-visible");
-      observer.unobserve(entry.target);
-    });
-  }, { threshold: 0.14 });
-  $$(".reveal").forEach((node) => revealObserver.observe(node));
-
-  const timelineObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) entry.target.classList.add("is-active");
-    });
-  }, { threshold: 0.52 });
-  $$(".timeline-item").forEach((item) => timelineObserver.observe(item));
+function showRecord(index) {
+  const record = siteConfig.records[index];
+  if (!record) return;
+  $("#recordNumber").textContent = String(index + 1).padStart(2, "0");
+  $("#recordCode").textContent = record.code;
+  $("#recordTitle").textContent = record.title;
+  const status = $("#recordStatus");
+  status.textContent = "DECRYPTING RECORD...";
+  const textEl = $("#recordText");
+  decryptText(textEl, record.text);
+  window.setTimeout(() => { status.textContent = "RECORD DECRYPTED"; }, reduceMotion.matches ? 0 : Math.min(900, record.text.length * 12));
+  $$("#recordDots button").forEach((button, i) => button.classList.toggle("is-active", i === index));
+  announce(`Personal record ${index + 1} of ${siteConfig.records.length}.`);
 }
 
-function setupScrollUI() {
-  const progress = $("#scrollProgress");
-  const sections = $$(".story-section");
-  const links = $$(".rail-nav a");
-  const update = () => {
-    const range = document.documentElement.scrollHeight - innerHeight;
-    if (progress) progress.style.width = `${range > 0 ? (scrollY / range) * 100 : 0}%`;
-  };
-  document.addEventListener("scroll", update, { passive: true });
-  update();
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      links.forEach((link) => link.classList.toggle("is-active", link.getAttribute("href") === `#${entry.target.id}`));
-    });
-  }, { rootMargin: "-40% 0px -50%" });
-  sections.forEach((section) => observer.observe(section));
+function recordStep(delta) {
+  const total = siteConfig.records.length;
+  const nextIndex = sceneManager.state.recordIndex + delta;
+  if (nextIndex < 0) { sceneManager.goTo("connection", { direction: "backward" }); return; }
+  if (nextIndex >= total) { sceneManager.goTo("timeline", { direction: "forward" }); return; }
+  sceneManager.state.recordIndex = nextIndex;
+  showRecord(nextIndex);
+  playInterfaceSound();
 }
 
+/* ==========================================================================
+   TIMELINE (single-item pager)
+   ========================================================================== */
+function renderTimelineDots() {
+  const wrap = $("#timelineDots");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  siteConfig.timeline.forEach((item, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", `Milestone ${index + 1} of ${siteConfig.timeline.length}`);
+    button.addEventListener("click", () => {
+      sceneManager.state.timelineIndex = index;
+      showTimeline(index);
+      playInterfaceSound();
+    });
+    wrap.append(button);
+  });
+}
+
+function showTimeline(index) {
+  const item = siteConfig.timeline[index];
+  if (!item) return;
+  $("#timelinePhase").textContent = item.phase;
+  $("#timelineTitle").textContent = item.title;
+  $("#timelineText").textContent = item.text;
+  $("#timelineProgress").style.width = `${((index + 1) / siteConfig.timeline.length) * 100}%`;
+  $$("#timelineDots button").forEach((button, i) => button.classList.toggle("is-active", i === index));
+  announce(`Signal history ${index + 1} of ${siteConfig.timeline.length}.`);
+}
+
+function timelineStep(delta) {
+  const total = siteConfig.timeline.length;
+  const nextIndex = sceneManager.state.timelineIndex + delta;
+  if (nextIndex < 0) { sceneManager.goTo("records", { direction: "backward" }); return; }
+  if (nextIndex >= total) { sceneManager.goTo("barrier", { direction: "forward" }); return; }
+  sceneManager.state.timelineIndex = nextIndex;
+  showTimeline(nextIndex);
+  playInterfaceSound();
+}
+
+/* ==========================================================================
+   HOLD INTERACTION (shared by connection + barrier)
+   ========================================================================== */
 function createHoldInteraction(button, onProgress, onComplete, duration = 2200) {
   if (!button) return;
   let holding = false;
@@ -314,37 +267,31 @@ function setupConnection() {
     message.textContent = siteConfig.syncMessage;
     button.textContent = "SIGNALS CONNECTED";
     button.disabled = true;
-    announce("Signal connection complete.");
+    sceneManager.state.syncComplete = true;
+    sceneManager.refreshLocks();
+    announce("Signal connection complete. The next chapter is now unlocked.");
     playInterfaceSound();
   });
 }
 
 function setupBarrier() {
-  const section = $("#barrier");
+  const scene = document.querySelector('.scene[data-scene="barrier"]');
   const button = $("#barrierButton");
   const number = $("#barrierNumber");
   const bar = $("#barrierBar");
-  const letter = $("#letter");
-  if (!section || !button || !number || !bar || !letter) return;
+  if (!scene || !button || !number || !bar) return;
   createHoldInteraction(button, (progress) => {
     number.textContent = String(Math.max(0, 100 - Math.round(progress * 100))).padStart(2, "0");
     bar.style.width = `${progress * 100}%`;
   }, () => {
-    section.classList.add("is-open");
-    letter.classList.remove("is-locked");
+    scene.classList.add("is-open");
     button.textContent = "MESSAGE RELEASED";
     button.disabled = true;
-    revealLetter();
+    sceneManager.state.barrierComplete = true;
+    sceneManager.refreshLocks();
     announce("Barrier opened. The message can now be read.");
     playInterfaceSound();
-    window.setTimeout(() => letter.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth" }), 500);
   }, 2700);
-}
-
-function revealLetter() {
-  $$("#letterCopy p").forEach((paragraph, index) => {
-    window.setTimeout(() => paragraph.classList.add("is-visible"), reduceMotion.matches ? 0 : index * 520);
-  });
 }
 
 function setupResponses() {
@@ -376,6 +323,9 @@ function setupResponses() {
   apply(localStorage.getItem("reiSignalResponse") || "");
 }
 
+/* ==========================================================================
+   AUDIO
+   ========================================================================== */
 function playInterfaceSound() {
   const audio = $("#interfaceAudio");
   const enabled = $("#audioButton")?.getAttribute("aria-pressed") === "true";
@@ -434,14 +384,71 @@ function setupAudio() {
   });
 }
 
-function setupReplay() {
-  $("#replayButton")?.addEventListener("click", () => {
-    sessionStorage.removeItem("reiSignalIntro");
-    window.scrollTo({ top: 0, behavior: "auto" });
-    window.location.reload();
-  });
+/* ==========================================================================
+   BOOT
+   ========================================================================== */
+function setupBoot() {
+  const bar = $("#bootBar");
+  const percent = $("#bootPercent");
+  const log = $("#bootLog");
+  const enter = $("#enterButton");
+  const skip = $("#skipButton");
+  if (!bar || !percent || !log || !enter || !skip) return;
+  const logs = [
+    "INITIALIZING PRIVATE TRANSMISSION...",
+    "EMOTIONAL SIGNAL DETECTED...",
+    "UNKNOWN EMOTIONAL PATTERN FOUND...",
+    "RECIPIENT IDENTITY LOADED...",
+    "UNSENT MESSAGE RECOVERED...",
+    "TRANSMISSION READY."
+  ];
+  let value = reduceMotion.matches ? 100 : 0;
+  let timer;
+  const finish = () => {
+    value = 100;
+    bar.style.width = "100%";
+    percent.textContent = "100";
+    log.textContent = logs.at(-1);
+    enter.disabled = false;
+  };
+  if (value === 100) finish();
+  else {
+    timer = window.setInterval(() => {
+      value = Math.min(100, value + Math.ceil(Math.random() * 5));
+      bar.style.width = `${value}%`;
+      percent.textContent = String(value).padStart(2, "0");
+      log.textContent = logs[Math.min(logs.length - 1, Math.floor(value / 20))];
+      if (value >= 100) {
+        clearInterval(timer);
+        finish();
+      }
+    }, 105);
+  }
+  const enterSignal = () => {
+    clearInterval(timer);
+    startAmbientAudio();
+    sessionStorage.setItem("reiSignalIntro", "seen");
+    sceneManager.goTo("hero", { historyMode: "replace" });
+  };
+  enter.addEventListener("click", enterSignal);
+  skip.addEventListener("click", () => { finish(); enterSignal(); });
 }
 
+function setupReplay() {
+  // The "REPLAY" action lives on the bottom-nav Next button while on the
+  // response chapter (see sceneManager.updateNavButtons). This clears the
+  // one-time boot flag so the intro plays again; the saved response choice
+  // is intentionally left in localStorage.
+  window.reiSignalReplay = () => {
+    sessionStorage.removeItem("reiSignalIntro");
+    window.location.hash = "";
+    window.location.reload();
+  };
+}
+
+/* ==========================================================================
+   AMBIENT VISUALS
+   ========================================================================== */
 function setupPointerLight() {
   const light = $("#pointerLight");
   if (!light || coarsePointer.matches || reduceMotion.matches) return;
@@ -478,7 +485,7 @@ function setupAmbientCanvas() {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const count = coarsePointer.matches ? 22 : 46;
+    const count = coarsePointer.matches ? 16 : 40;
     particles = Array.from({ length: count }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -510,19 +517,310 @@ function setupAmbientCanvas() {
   draw();
 }
 
+/* ==========================================================================
+   SCENE MANAGER
+   Fullscreen chapters, cinematic transitions, hash sync, swipe + keyboard.
+   ========================================================================== */
+const sceneOrder = ["hero", "connection", "records", "timeline", "barrier", "letter", "response"];
+const chapterMeta = {
+  hero: { num: "01", title: "SIGNAL DETECTED", transition: "LOCKING ONTO SIGNAL..." },
+  connection: { num: "02", title: "CONNECTION", transition: "ESTABLISHING CONNECTION..." },
+  records: { num: "03", title: "PERSONAL RECORDS", transition: "DECRYPTING PERSONAL RECORD..." },
+  timeline: { num: "04", title: "SIGNAL HISTORY", transition: "TRACING SIGNAL HISTORY..." },
+  barrier: { num: "05", title: "EMOTIONAL BARRIER", transition: "A.T. FIELD DETECTED..." },
+  letter: { num: "06", title: "PRIVATE MESSAGE", transition: "RECOVERING PRIVATE MESSAGE..." },
+  response: { num: "07", title: "RESPONSE CHANNEL", transition: "OPENING RESPONSE CHANNEL..." }
+};
+
+const sceneManager = {
+  state: {
+    current: "boot",
+    transitioning: false,
+    syncComplete: false,
+    barrierComplete: false,
+    recordIndex: 0,
+    timelineIndex: 0
+  },
+
+  maxUnlockedIndex() {
+    if (!this.state.syncComplete) return 1;      // hero, connection
+    if (!this.state.barrierComplete) return 4;   // + records, timeline, barrier
+    return sceneOrder.length - 1;                // everything
+  },
+
+  canEnter(name) {
+    const idx = sceneOrder.indexOf(name);
+    if (idx < 0) return name === "boot";
+    return idx <= this.maxUnlockedIndex();
+  },
+
+  computeDirection(targetName) {
+    const curIdx = sceneOrder.indexOf(this.state.current);
+    const tgtIdx = sceneOrder.indexOf(targetName);
+    if (curIdx < 0 || tgtIdx < 0) return "forward";
+    return tgtIdx >= curIdx ? "forward" : "backward";
+  },
+
+  goTo(name, opts = {}) {
+    if (this.state.transitioning) return;
+    if (name === this.state.current && !opts.force) return;
+    if (name !== "boot" && !this.canEnter(name)) {
+      const fallback = sceneOrder[this.maxUnlockedIndex()];
+      this.lockedHint();
+      if (fallback === this.state.current || !fallback) return;
+      name = fallback;
+    }
+    this.transitionTo(name, opts);
+  },
+
+  lockedHint() {
+    const next = $("#navNext");
+    if (next) {
+      next.classList.remove("is-locked");
+      void next.offsetWidth;
+      next.classList.add("is-locked");
+    }
+    announce("Complete this step before continuing.");
+  },
+
+  transitionTo(targetName, opts) {
+    this.state.transitioning = true;
+    const direction = opts.direction || this.computeDirection(targetName);
+    this.playOverlay(targetName, () => {
+      this.swapScene(targetName);
+      this.updateChrome(targetName);
+      this.updateHash(targetName, opts.historyMode);
+      this.state.current = targetName;
+      this.state.transitioning = false;
+
+      if (targetName === "records") {
+        this.state.recordIndex = direction === "backward" ? siteConfig.records.length - 1 : 0;
+        showRecord(this.state.recordIndex);
+      }
+      if (targetName === "timeline") {
+        this.state.timelineIndex = direction === "backward" ? siteConfig.timeline.length - 1 : 0;
+        showTimeline(this.state.timelineIndex);
+      }
+      if (targetName === "letter") revealLetterOnce();
+
+      const el = document.querySelector(`.scene[data-scene="${targetName}"]`);
+      if (el) { el.setAttribute("tabindex", "-1"); el.focus({ preventScroll: true }); }
+    });
+  },
+
+  playOverlay(targetName, callback) {
+    const overlay = $("#chapterTransition");
+    const numberEl = $("#transitionNumber");
+    const textEl = $("#transitionText");
+    const bar = $("#transitionBar");
+    if (!overlay) { callback(); return; }
+    const meta = chapterMeta[targetName];
+    numberEl.textContent = meta ? meta.num : "00";
+    textEl.textContent = meta ? meta.transition : "RETURNING TO BOOT...";
+    bar.style.width = "0%";
+    overlay.classList.add("is-active");
+    requestAnimationFrame(() => { bar.style.width = "100%"; });
+    const holdTime = reduceMotion.matches ? 80 : 620;
+    window.setTimeout(() => {
+      callback();
+      window.setTimeout(() => overlay.classList.remove("is-active"), reduceMotion.matches ? 40 : 220);
+    }, holdTime);
+  },
+
+  swapScene(targetName) {
+    $$(".scene").forEach((scene) => scene.classList.remove("is-active"));
+    const target = document.querySelector(`.scene[data-scene="${targetName}"]`);
+    if (target) target.classList.add("is-active");
+    document.body.dataset.activeScene = targetName;
+  },
+
+  updateHash(name, mode) {
+    const hash = `#${name}`;
+    if (mode === "skip") return;
+    if (mode === "replace" || location.hash === "") history.replaceState({ scene: name }, "", hash);
+    else if (location.hash !== hash) history.pushState({ scene: name }, "", hash);
+  },
+
+  updateChrome(targetName) {
+    const topbar = $("#topbarChapter");
+    if (topbar) topbar.textContent = targetName === "boot" ? "SYSTEM BOOT" : `CH. ${chapterMeta[targetName].num} / 07 — ${chapterMeta[targetName].title}`;
+    this.updateNavButtons(targetName);
+    this.updateDots(targetName);
+  },
+
+  updateNavButtons(targetName) {
+    const back = $("#navBack");
+    const next = $("#navNext");
+    if (!back || !next) return;
+    if (targetName === "boot") return;
+    const idx = sceneOrder.indexOf(targetName);
+    back.disabled = idx <= 0;
+
+    if (targetName === "response") {
+      next.textContent = "REPLAY ↻";
+      next.setAttribute("aria-label", "Replay the whole experience");
+      next.disabled = false;
+    } else {
+      next.textContent = "NEXT ›";
+      next.setAttribute("aria-label", "Next chapter");
+      const locked = (targetName === "connection" && !this.state.syncComplete) ||
+                     (targetName === "barrier" && !this.state.barrierComplete);
+      next.disabled = locked;
+    }
+  },
+
+  buildDots() {
+    const wrap = $("#sceneDots");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    sceneOrder.forEach((name) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.scene = name;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-label", chapterMeta[name].title);
+      button.addEventListener("click", () => { this.goTo(name); playInterfaceSound(); });
+      wrap.append(button);
+    });
+  },
+
+  updateDots(targetName) {
+    const maxIdx = this.maxUnlockedIndex();
+    $$("#sceneDots button").forEach((button, i) => {
+      button.classList.toggle("is-active", button.dataset.scene === targetName);
+      const reachable = i <= maxIdx;
+      button.disabled = !reachable;
+      button.setAttribute("aria-selected", String(button.dataset.scene === targetName));
+    });
+  },
+
+  refreshLocks() {
+    this.updateNavButtons(this.state.current);
+    this.updateDots(this.state.current);
+  }
+};
+
+function handleDirectionalInput(direction) {
+  if (sceneManager.state.current === "records") { recordStep(direction === "forward" ? 1 : -1); return; }
+  if (sceneManager.state.current === "timeline") { timelineStep(direction === "forward" ? 1 : -1); return; }
+  const back = $("#navBack");
+  const next = $("#navNext");
+  if (direction === "forward") {
+    if (!next || next.disabled) { sceneManager.lockedHint(); return; }
+    next.click();
+  } else {
+    if (!back || back.disabled) return;
+    back.click();
+  }
+}
+
+function setupSceneNav() {
+  const back = $("#navBack");
+  const next = $("#navNext");
+  const viewport = $("#sceneViewport");
+  if (!back || !next || !viewport) return;
+
+  back.addEventListener("click", () => {
+    if (back.disabled) return;
+    const idx = sceneOrder.indexOf(sceneManager.state.current);
+    if (idx <= 0) return;
+    playInterfaceSound();
+    sceneManager.goTo(sceneOrder[idx - 1], { direction: "backward" });
+  });
+
+  next.addEventListener("click", () => {
+    if (sceneManager.state.current === "response") {
+      playInterfaceSound();
+      window.reiSignalReplay?.();
+      return;
+    }
+    if (next.disabled) { sceneManager.lockedHint(); return; }
+    const idx = sceneOrder.indexOf(sceneManager.state.current);
+    const target = sceneOrder[idx + 1];
+    if (!target) return;
+    playInterfaceSound();
+    sceneManager.goTo(target, { direction: "forward" });
+  });
+
+  $("#recordPrev")?.addEventListener("click", () => recordStep(-1));
+  $("#recordNext")?.addEventListener("click", () => recordStep(1));
+  $("#timelinePrev")?.addEventListener("click", () => timelineStep(-1));
+  $("#timelineNext")?.addEventListener("click", () => timelineStep(1));
+
+  document.addEventListener("keydown", (event) => {
+    if (sceneManager.state.current === "boot") return;
+    if (event.target instanceof HTMLElement && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
+    if (event.key === "ArrowRight") handleDirectionalInput("forward");
+    else if (event.key === "ArrowLeft") handleDirectionalInput("backward");
+  });
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartT = 0;
+  let swiping = false;
+  viewport.addEventListener("touchstart", (event) => {
+    if (sceneManager.state.transitioning || sceneManager.state.current === "boot") return;
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartT = Date.now();
+    swiping = true;
+  }, { passive: true });
+  viewport.addEventListener("touchend", (event) => {
+    if (!swiping) return;
+    swiping = false;
+    if (sceneManager.state.transitioning || sceneManager.state.current === "boot") return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - touchStartX;
+    const dy = touch.clientY - touchStartY;
+    const dt = Date.now() - touchStartT;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.4 || dt > 700) return;
+    handleDirectionalInput(dx < 0 ? "forward" : "backward");
+  }, { passive: true });
+
+  window.addEventListener("popstate", () => {
+    if (sceneManager.state.transitioning) return;
+    const raw = (location.hash || "").slice(1);
+    if (raw === "boot" || raw === "") return;
+    const target = sceneOrder.includes(raw) ? raw : "hero";
+    if (target === sceneManager.state.current) return;
+    sceneManager.goTo(target, { historyMode: "skip" });
+  });
+}
+
+function bootstrapScene() {
+  sceneManager.buildDots();
+  const introSeen = sessionStorage.getItem("reiSignalIntro") === "seen";
+  let initial = "boot";
+  if (introSeen) {
+    const raw = (location.hash || "").slice(1);
+    initial = (sceneOrder.includes(raw) && sceneManager.canEnter(raw)) ? raw : "hero";
+  }
+  sceneManager.swapScene(initial);
+  sceneManager.state.current = initial;
+  sceneManager.updateChrome(initial);
+  history.replaceState({ scene: initial }, "", `#${initial}`);
+  if (initial === "records") showRecord(sceneManager.state.recordIndex);
+  if (initial === "timeline") showTimeline(sceneManager.state.timelineIndex);
+  if (initial === "letter") revealLetterOnce();
+}
+
+/* ==========================================================================
+   INIT
+   ========================================================================== */
 function init() {
   applyConfig();
   setupAssetFallbacks();
   setupBoot();
-  setupRevealObservers();
-  setupScrollUI();
   setupConnection();
   setupBarrier();
   setupResponses();
   setupAudio();
   setupReplay();
+  setupSceneNav();
   setupPointerLight();
   setupAmbientCanvas();
+  bootstrapScene();
 }
 
 document.addEventListener("DOMContentLoaded", init);
