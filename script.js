@@ -25,7 +25,7 @@ const siteConfig = {
   ],
   syncMessage: "Connection established. Ayyash's heart has found Maureen's signal.",
   responses: {
-    yes: "HEART SIGNAL MATCHED / A beautiful beginning is waiting for your words.",
+    yes: "HEART SIGNAL MATCHED / A sincere first conversation is waiting for your words.",
     no: "ANSWER RECEIVED / Your honesty is respected. A sincere feeling should never take away your freedom to choose."
   }
 };
@@ -169,6 +169,7 @@ function createHoldInteraction(button, options) {
   let completed = false;
   let startedAt = 0;
   let frame = 0;
+  let activePointerId = null;
 
   const paint = (value) => {
     progress = clamp(value, 0, 1);
@@ -194,7 +195,12 @@ function createHoldInteraction(button, options) {
   const start = (event) => {
     if (completed || button.disabled || sceneManager.state.transitioning) return;
     if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
-    event.preventDefault();
+    if (event.type === "pointerdown" && event.button !== undefined && event.button !== 0) return;
+    if (event.cancelable) event.preventDefault();
+    if (event.type === "pointerdown") {
+      activePointerId = event.pointerId;
+      try { button.setPointerCapture?.(activePointerId); } catch (_) {}
+    }
     holding = true;
     button.classList.add("is-holding");
     startedAt = performance.now() - progress * duration;
@@ -204,6 +210,12 @@ function createHoldInteraction(button, options) {
 
   const stop = (event) => {
     if (event?.type === "keyup" && !["Enter", " "].includes(event.key)) return;
+    if (event?.type?.startsWith("pointer") && activePointerId !== null && event.pointerId !== activePointerId) return;
+    if (event?.cancelable) event.preventDefault();
+    if (activePointerId !== null) {
+      try { button.releasePointerCapture?.(activePointerId); } catch (_) {}
+      activePointerId = null;
+    }
     if (!holding) return;
     holding = false;
     button.classList.remove("is-holding");
@@ -220,6 +232,12 @@ function createHoldInteraction(button, options) {
   button.addEventListener("pointerleave", stop);
   button.addEventListener("keydown", start);
   button.addEventListener("keyup", stop);
+  const blockNativeHoldUi = (event) => {
+    if (event.cancelable) event.preventDefault();
+  };
+  button.addEventListener("contextmenu", blockNativeHoldUi);
+  button.addEventListener("selectstart", blockNativeHoldUi);
+  button.addEventListener("dragstart", blockNativeHoldUi);
   if (reduceMotion.matches) {
     button.addEventListener("click", () => {
       if (completed || button.disabled) return;
@@ -235,6 +253,10 @@ function createHoldInteraction(button, options) {
       holding = false;
       startedAt = 0;
       cancelAnimationFrame(frame);
+      if (activePointerId !== null) {
+        try { button.releasePointerCapture?.(activePointerId); } catch (_) {}
+        activePointerId = null;
+      }
       button.classList.remove("is-holding");
       button.removeAttribute("aria-pressed");
       paint(0);
@@ -792,7 +814,7 @@ function setupWhatsAppReply() {
 
   const updateLink = () => {
     const customReply = textarea.value.trim();
-    const introduction = `Hi ${siteConfig.senderName}, I just finished reading your message. My answer is yes.`;
+    const introduction = `Hi ${siteConfig.senderName}, I just finished reading your message. Yes, I would be happy to get to know you more.`;
     const message = customReply
       ? `${introduction}\n\nWhat I want to tell you is:\n${customReply}`
       : `${introduction}\n\nYour message reached me, and I want to tell you more about how it made me feel.`;

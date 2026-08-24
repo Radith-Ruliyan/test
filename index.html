@@ -47,10 +47,24 @@
         <p class="boot-card__log" id="bootLog" aria-live="polite">INITIALIZING PRIVATE TRANSMISSION...</p>
         <div class="boot-card__track"><i id="bootBar"></i></div>
         <div class="boot-card__percent"><span id="bootPercent">00</span>% / CALIBRATION</div>
-        <button class="hold-orb hold-orb--boot" id="enterButton" type="button" disabled aria-label="Hold to receive the signal">
-          <span class="hold-orb__visual" aria-hidden="true"><i></i><i></i><b></b></span>
+        <button class="hold-orb hold-orb--boot" id="enterButton" type="button" disabled aria-label="Press and hold the fingerprint scanner to receive the signal">
+          <span class="hold-orb__visual hold-orb__visual--fingerprint" aria-hidden="true">
+            <i></i><i></i>
+            <svg class="fingerprint-icon" viewBox="0 0 64 64" focusable="false">
+              <path d="M11 29C11 17.4 20.4 8 32 8s21 9.4 21 21"/>
+              <path d="M17 32v-4c0-8.3 6.7-15 15-15s15 6.7 15 15v5"/>
+              <path d="M22 33v-5c0-5.5 4.5-10 10-10s10 4.5 10 10v8"/>
+              <path d="M27 35v-7a5 5 0 0 1 10 0v8"/>
+              <path d="M16 37c0 9 4 15 10 19"/>
+              <path d="M22 36c0 8 3 13 8 18"/>
+              <path d="M29 37c0 6 2 10 5 14"/>
+              <path d="M38 40c-.3 7-2 12-5 16"/>
+              <path d="M45 37c0 9-2 15-5 20"/>
+              <path d="M51 35c0 11-2 19-6 26"/>
+            </svg>
+          </span>
           <span class="hold-orb__label">HOLD TO RECEIVE SIGNAL</span>
-          <span class="hold-orb__hint">KEEP CONTACT UNTIL THE PULSE STABILIZES</span>
+          <span class="hold-orb__hint">KEEP YOUR FINGER ON THE SCANNER</span>
         </button>
       </div>
     </section>
@@ -186,11 +200,11 @@
       <span class="scene-code" aria-hidden="true">07</span>
       <div class="response-panel">
         <p class="eyebrow"><span>HEART SIGNAL</span> A QUESTION FROM <b data-sender>AYYASH</b></p>
-        <h2><span data-recipient>Maureen</span>, will you accept<br><em>my love?</em></h2>
-        <p class="response-lead">Every quiet signal on this page carries one honest truth: knowing you made ordinary days feel brighter. There is no pressure in this question—only Ayyash's hope that this feeling could become the first page of a story you both choose.</p>
+        <h2><span data-recipient>Maureen</span>, can I get to<br><em>know you more?</em></h2>
+        <p class="response-lead">Every quiet signal on this page carries one honest truth: knowing you made ordinary days feel brighter. There is no pressure and no promise you have to make—only Ayyash asking for a chance to know you more, one sincere conversation at a time.</p>
         <div class="response-options response-options--binary" id="responseOptions" aria-label="Choose your answer to Ayyash">
-          <button class="response-yes" type="button" data-response="yes"><i aria-hidden="true"></i><span>YES — LET'S BEGIN OUR STORY</span></button>
-          <button class="response-no" id="noResponseButton" type="button" data-response="no"><i aria-hidden="true"></i><span>NO — I DON'T FEEL THE SAME</span></button>
+          <button class="response-yes" type="button" data-response="yes"><i aria-hidden="true"></i><span>YES — LET'S GET TO KNOW EACH OTHER</span></button>
+          <button class="response-no" id="noResponseButton" type="button" data-response="no"><i aria-hidden="true"></i><span>NO — I'D RATHER NOT</span></button>
         </div>
         <small class="no-hint" id="noHint">THE “NO” SIGNAL MAY DRIFT TWICE, THEN IT WILL STAY STILL—THE CHOICE IS ALWAYS YOURS.</small>
         <p class="response-feedback" id="responseFeedback" aria-live="polite">RESPONSE CHANNEL / WAITING</p>
