@@ -3,225 +3,207 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#061c2c">
-  <meta name="description" content="A bright-blue, Evangelion-inspired personal signal and confession experience.">
+  <meta name="theme-color" content="#c9f5ff">
+  <meta name="description" content="A cinematic personal signal and confession experience.">
   <title>REI SIGNAL // Private Transmission</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
-<body>
-  <!-- persistent atmosphere layers, independent of scene changes -->
+<body data-active-scene="boot">
   <canvas id="ambientCanvas" aria-hidden="true"></canvas>
   <div class="screen-grid" aria-hidden="true"></div>
   <div class="scanline" aria-hidden="true"></div>
-  <div class="pointer-light" id="pointerLight" aria-hidden="true"></div>
   <div class="vignette" aria-hidden="true"></div>
 
-  <!-- cinematic chapter transition overlay -->
   <div class="chapter-transition" id="chapterTransition" aria-hidden="true">
-    <div class="chapter-transition__reticle" aria-hidden="true">
-      <span class="ct-ring ct-ring--a"></span>
-      <span class="ct-ring ct-ring--b"></span>
-      <span class="ct-cross"></span>
+    <div class="chapter-transition__rings" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="chapter-transition__pulse" aria-hidden="true"></div>
+    <div class="chapter-transition__copy">
+      <span id="transitionNumber">00</span>
+      <strong id="transitionText">SIGNAL RECOGNIZED</strong>
+      <div><i id="transitionBar"></i></div>
     </div>
-    <div class="chapter-transition__beam" aria-hidden="true"></div>
-    <div class="chapter-transition__body">
-      <span class="chapter-transition__number" id="transitionNumber">00</span>
-      <span class="chapter-transition__text" id="transitionText">LOCKING ON&shy;TO SIGNAL...</span>
-      <span class="chapter-transition__track"><i id="transitionBar"></i></span>
-    </div>
-    <div class="chapter-transition__flash" aria-hidden="true"></div>
   </div>
 
-  <!-- top chrome -->
   <header class="topbar">
-    <span class="brand" aria-hidden="true">
-      <span class="brand__cross"></span>
+    <div class="brand" aria-label="REI SIGNAL private transmission">
+      <span class="brand__cross" aria-hidden="true"></span>
       <span class="brand__text"><b>REI SIGNAL</b><small>PRIVATE TRANSMISSION</small></span>
-    </span>
-    <span class="topbar__chapter" id="topbarChapter" aria-live="polite">SYSTEM BOOT</span>
-    <button class="icon-button" id="audioButton" type="button" aria-pressed="false" aria-label="Audio will activate after entering the website">AUDIO / READY</button>
+    </div>
+    <div class="topbar__status">
+      <span id="topbarChapter">SYSTEM BOOT</span>
+      <div class="chapter-pips" id="chapterPips" aria-label="Transmission progress"></div>
+    </div>
+    <button class="audio-button" id="audioButton" type="button" aria-pressed="false" aria-label="Turn on audio">AUDIO / READY</button>
   </header>
 
-  <!-- scene stack: one fullscreen chapter visible at a time -->
   <main class="scene-viewport" id="sceneViewport">
-
-    <!-- 00 :: BOOT -->
-    <section class="scene scene--boot" data-scene="boot" id="scene-boot" aria-label="System introduction">
-      <div class="boot__frame">
-        <div class="boot__eyebrow"><span>REI.SYS</span><span>PERSONAL CHANNEL 00</span></div>
-        <div class="boot__mark" aria-hidden="true"><i></i><i></i><i></i></div>
+    <section class="scene scene--boot is-active" data-scene="boot" aria-label="System introduction" aria-hidden="false">
+      <div class="boot-card">
+        <div class="boot-card__meta"><span>REI.SYS</span><span>PERSONAL CHANNEL 00</span></div>
+        <div class="boot-card__mark" aria-hidden="true"><i></i><i></i><i></i></div>
         <h1>EMOTIONAL SIGNAL<br><em>DETECTED</em></h1>
-        <div class="boot__log" id="bootLog" aria-live="polite">INITIALIZING PRIVATE TRANSMISSION...</div>
-        <div class="boot__track"><span id="bootBar"></span></div>
-        <div class="boot__percent"><span id="bootPercent">00</span>% / SYNC</div>
-        <div class="boot__actions">
-          <button class="system-button system-button--primary" id="enterButton" type="button" disabled>ENTER THE SIGNAL</button>
-          <button class="text-button" id="skipButton" type="button">SKIP INITIALIZATION</button>
+        <p class="boot-card__log" id="bootLog" aria-live="polite">INITIALIZING PRIVATE TRANSMISSION...</p>
+        <div class="boot-card__track"><i id="bootBar"></i></div>
+        <div class="boot-card__percent"><span id="bootPercent">00</span>% / CALIBRATION</div>
+        <button class="hold-orb hold-orb--boot" id="enterButton" type="button" disabled aria-label="Hold to receive the signal">
+          <span class="hold-orb__visual" aria-hidden="true"><i></i><i></i><b></b></span>
+          <span class="hold-orb__label">HOLD TO RECEIVE SIGNAL</span>
+          <span class="hold-orb__hint">KEEP CONTACT UNTIL THE PULSE STABILIZES</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="scene scene--hero" data-scene="hero" data-chapter="01" aria-label="Signal detected" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">01</span>
+      <div class="hero-copy">
+        <p class="eyebrow"><span>SUBJECT 00</span> PRIVATE TRANSMISSION</p>
+        <h1>A signal<br>for <em data-recipient>[HER NAME]</em></h1>
+        <p class="hero-lead" data-opening>A feeling that grew quietly, recorded between small conversations and simple moments that always seemed to matter.</p>
+      </div>
+      <div class="hero-art asset-frame" data-asset="assets/rei-hero.png">
+        <div class="hero-art__warning">UNKNOWN EMOTION / DO NOT ERASE</div>
+        <img src="assets/rei-hero.png" alt="Rei-inspired character illustration">
+        <div class="asset-fallback"><span>HERO PORTRAIT</span><b>assets/rei-hero.png</b></div>
+        <div class="hero-art__orbit" aria-hidden="true"></div>
+      </div>
+      <div class="signal-align" id="heroSignalAlign">
+        <div class="interaction-copy"><strong>BRING THE TWO SIGNALS TOGETHER</strong><small>DRAG THE BLUE SIGNAL TOWARD THE PINK SIGNAL</small></div>
+        <div class="signal-align__track" id="heroSignalTrack">
+          <i class="signal-align__beam" id="heroSignalBeam" aria-hidden="true"></i>
+          <button class="signal-align__node signal-align__node--sender" id="heroSignalHandle" type="button" aria-label="Drag sender signal toward receiver signal"><span>A</span><small>SENDER</small></button>
+          <div class="signal-align__node signal-align__node--receiver" id="heroSignalTarget" aria-hidden="true"><span>M</span><small data-recipient>[HER NAME]</small></div>
+          <span class="signal-align__distance" aria-hidden="true">SIGNAL DISTANCE / <b id="heroSignalDistance">100</b></span>
         </div>
       </div>
     </section>
 
-    <!-- 01 :: SIGNAL DETECTED -->
-    <section class="scene" data-scene="hero" data-chapter-number="01" aria-label="Signal detected">
-      <span class="scene-glyph" aria-hidden="true">01</span>
-      <div class="hero">
-        <div class="hero__copy">
-          <p class="eyebrow"><span>SUBJECT 00</span>PRIVATE TRANSMISSION</p>
-          <h1>A signal<br>for <em data-recipient>[HER NAME]</em></h1>
-          <p class="hero__lead" data-opening>A feeling that grew quietly, recorded between small conversations and simple moments that always seemed to matter.</p>
-          <div class="hero__meta">
-            <span><small>TYPE</small><b>PERSONAL</b></span>
-            <span><small>STATUS</small><b>UNSENT</b></span>
-          </div>
-        </div>
-        <div class="hero__visual">
-          <div class="hero__warning">UNKNOWN EMOTION / DO NOT ERASE</div>
-          <div class="portrait-frame asset-frame" data-asset="assets/rei-hero.png">
-            <img src="assets/rei-hero.png" alt="Placeholder for a Rei Ayanami-inspired character illustration">
-            <div class="asset-fallback">
-              <div class="fallback-orbit" aria-hidden="true"></div>
-              <span>PLACE HERO ART HERE</span>
-              <b>assets/rei-hero.png</b>
-            </div>
-          </div>
-          <div class="signal-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 02 :: CONNECTION -->
-    <section class="scene" data-scene="connection" data-chapter-number="02" aria-label="Connection">
-      <span class="scene-glyph" aria-hidden="true">02</span>
+    <section class="scene scene--connection" data-scene="connection" data-chapter="02" aria-label="Connection" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">02</span>
       <div class="section-heading">
-        <p class="eyebrow"><span>PHASE 01</span>SIGNAL CONTACT</p>
+        <p class="eyebrow"><span>PHASE 01</span> SIGNAL CONTACT</p>
         <h2>Two signals.<br><em>One act of courage.</em></h2>
       </div>
       <div class="sync-panel" id="syncPanel">
         <div class="sync-panel__header"><span>SYNCHRONIZATION TEST</span><span id="syncStatus">CONNECTION STANDBY</span></div>
         <div class="sync-stage">
-          <div class="signal-node signal-node--a"><span>A</span><small>SENDER</small></div>
+          <div class="signal-node"><span>A</span><small>SENDER</small></div>
           <div class="sync-path" aria-hidden="true"><i id="syncLine"></i><b></b></div>
-          <div class="field-gate" id="fieldGate" aria-hidden="true"><i></i><i></i><i></i></div>
-          <div class="signal-node signal-node--b"><span>R</span><small data-recipient>[HER NAME]</small></div>
+          <div class="field-gate" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="signal-node"><span>M</span><small data-recipient>[HER NAME]</small></div>
         </div>
-        <div class="sync-readout"><strong><span id="syncValue">00</span>%</strong><span>EMOTIONAL LINK</span></div>
-        <div class="sync-message" id="syncMessage" aria-live="polite">The signal has not been sent yet.</div>
-        <button class="system-button system-button--dark hold-control" id="syncButton" type="button">PRESS &amp; HOLD TO CONNECT</button>
+        <div class="sync-readout"><strong><span id="syncValue">00</span>%</strong><small>EMOTIONAL LINK</small></div>
+        <p class="sync-message" id="syncMessage" aria-live="polite">The signal has not been sent yet.</p>
+        <button class="hold-strip" id="syncButton" type="button"><i aria-hidden="true"></i><span>PRESS &amp; HOLD TO CONNECT</span><small>KEEP BOTH SIGNALS IN SYNC</small></button>
       </div>
     </section>
 
-    <!-- 03 :: PERSONAL RECORDS -->
-    <section class="scene" data-scene="records" data-chapter-number="03" aria-label="Personal records">
-      <span class="scene-glyph" aria-hidden="true">03</span>
-      <div class="section-heading section-heading--tight">
-        <p class="eyebrow"><span>PHASE 02</span>PERSONAL OBSERVATION</p>
+    <section class="scene scene--records" data-scene="records" data-chapter="03" aria-label="Personal records" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">03</span>
+      <div class="section-heading section-heading--compact">
+        <p class="eyebrow"><span>PHASE 02</span> PERSONAL OBSERVATION</p>
         <h2>Small things that<br><em>stayed on record.</em></h2>
       </div>
-      <div class="record-stage" id="recordStage">
-        <div class="record-stage__frame">
-          <button class="record-arrow record-arrow--prev" id="recordPrev" type="button" aria-label="Previous record">‹</button>
-          <article class="record-card" id="recordCard">
-            <div class="record-card__top">
-              <span class="record-card__number" id="recordNumber">01</span>
-              <span class="record-card__code" id="recordCode">OBS-01</span>
-            </div>
-            <h3 id="recordTitle">Title</h3>
-            <p class="record-card__status" id="recordStatus">DECRYPTING RECORD...</p>
-            <p class="record-card__text decrypt-scroll" id="recordText"></p>
-          </article>
-          <button class="record-arrow record-arrow--next" id="recordNext" type="button" aria-label="Next record">›</button>
+      <div class="record-stage">
+        <div class="record-stage__counter"><span id="recordCounter">RECORD 01 / 05</span><span id="recordCode">OBS-01</span></div>
+        <article class="record-card" id="recordCard">
+          <span class="record-card__number" id="recordNumber">01</span>
+          <p class="record-card__status" id="recordStatus">PERSONAL RECORD READY</p>
+          <h3 id="recordTitle">Record title</h3>
+          <p class="record-card__text" id="recordText"></p>
+          <div class="record-card__scan" id="recordScan" aria-hidden="true"></div>
+        </article>
+        <div class="swipe-console" id="recordConsole">
+          <div class="interaction-copy"><strong id="recordActionLabel">SWIPE TO DECRYPT THIS MEMORY</strong><small>THE SIGNAL WILL MOVE FORWARD AFTER DECRYPTION</small></div>
+          <div class="swipe-console__track" id="recordTrack">
+            <i id="recordTrackFill"></i>
+            <button class="swipe-console__handle" id="recordHandle" type="button" aria-label="Drag to decrypt this memory"><span>◇</span></button>
+            <b aria-hidden="true">MEMORY</b>
+          </div>
         </div>
-        <div class="record-stage__dots" id="recordDots" role="tablist" aria-label="Records"></div>
       </div>
     </section>
 
-    <!-- 04 :: SIGNAL HISTORY -->
-    <section class="scene" data-scene="timeline" data-chapter-number="04" aria-label="Signal history">
-      <span class="scene-glyph" aria-hidden="true">04</span>
-      <div class="section-heading section-heading--tight">
-        <p class="eyebrow"><span>HISTORY</span>SIGNAL DEVELOPMENT</p>
+    <section class="scene scene--timeline" data-scene="timeline" data-chapter="04" aria-label="Signal history" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">04</span>
+      <div class="section-heading section-heading--compact">
+        <p class="eyebrow"><span>HISTORY</span> SIGNAL DEVELOPMENT</p>
         <h2>From unfamiliar<br>to <em>meaningful.</em></h2>
       </div>
-      <div class="timeline-stage" id="timelineStage">
-        <div class="timeline-stage__frame">
-          <button class="record-arrow record-arrow--prev" id="timelinePrev" type="button" aria-label="Previous milestone">‹</button>
-          <article class="timeline-card" id="timelineCard">
-            <span class="timeline-card__phase" id="timelinePhase">01 / FIRST DETECTION</span>
-            <h3 id="timelineTitle">Title</h3>
-            <p id="timelineText">Text</p>
-          </article>
-          <button class="record-arrow record-arrow--next" id="timelineNext" type="button" aria-label="Next milestone">›</button>
-        </div>
-        <div class="timeline-stage__track"><i id="timelineProgress"></i></div>
-        <div class="timeline-stage__dots" id="timelineDots" role="tablist" aria-label="Milestones"></div>
-      </div>
-    </section>
-
-    <!-- 05 :: EMOTIONAL BARRIER -->
-    <section class="scene" data-scene="barrier" data-chapter-number="05" aria-label="Emotional barrier">
-      <span class="scene-glyph" aria-hidden="true">05</span>
-      <div class="barrier">
-        <div class="barrier__visual" id="barrierVisual" aria-hidden="true">
-          <div class="barrier-ring barrier-ring--one"></div>
-          <div class="barrier-ring barrier-ring--two"></div>
-          <div class="barrier-ring barrier-ring--three"></div>
-          <div class="barrier-core"><span id="barrierNumber">100</span><small>FIELD</small></div>
-        </div>
-        <div class="barrier__copy">
-          <p class="eyebrow"><span>PHASE 04</span>A.T. FIELD METAPHOR</p>
-          <h2>A message that has<br><em>been held back.</em></h2>
-          <p class="barrier__lead">A barrier is not always rejection—it can simply be a way of protecting something until the time feels right.</p>
-          <div class="barrier-meter"><span id="barrierBar"></span></div>
-          <button class="system-button system-button--primary hold-control" id="barrierButton" type="button">HOLD TO LET THE MESSAGE THROUGH</button>
-          <small class="control-hint">Use a mouse, touch, Enter, or Space.</small>
+      <div class="timeline-stage">
+        <div class="timeline-stage__counter" id="timelineCounter">MILESTONE 01 / 05</div>
+        <article class="timeline-card" id="timelineCard">
+          <span id="timelinePhase">01 / FIRST DETECTION</span>
+          <h3 id="timelineTitle">The first realization</h3>
+          <p id="timelineText"></p>
+        </article>
+        <div class="trace-console" id="timelineConsole">
+          <div class="interaction-copy"><strong id="timelineActionLabel">TRACE THE MEMORY PATH</strong><small>GUIDE THE PULSE ALONG THE SIGNAL</small></div>
+          <div class="trace-console__path" id="timelineTrack">
+            <i id="timelineTrackFill"></i>
+            <span class="trace-console__milestones" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></span>
+            <button class="trace-console__handle" id="timelineHandle" type="button" aria-label="Drag to trace the memory path"><span>+</span></button>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 06 :: PRIVATE MESSAGE -->
-    <section class="scene scene--letter" data-scene="letter" data-chapter-number="06" aria-label="Private message">
-      <span class="scene-glyph" aria-hidden="true">06</span>
+    <section class="scene scene--barrier" data-scene="barrier" data-chapter="05" aria-label="Emotional barrier" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">05</span>
+      <div class="barrier-visual" id="barrierVisual" aria-hidden="true">
+        <i></i><i></i><i></i>
+        <div><span id="barrierNumber">100</span><small>FIELD</small></div>
+      </div>
+      <div class="barrier-copy">
+        <p class="eyebrow"><span>PHASE 04</span> A.T. FIELD METAPHOR</p>
+        <h2>A message that has<br><em>been held back.</em></h2>
+        <p>A barrier is not always rejection—it can simply protect something until the time feels right.</p>
+        <div class="barrier-meter"><i id="barrierBar"></i></div>
+        <button class="hold-strip hold-strip--barrier" id="barrierButton" type="button"><i aria-hidden="true"></i><span>HOLD TO OPEN THE BARRIER</span><small>LET THE MESSAGE PASS THROUGH</small></button>
+      </div>
+    </section>
+
+    <section class="scene scene--letter" data-scene="letter" data-chapter="06" aria-label="Private message" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">06</span>
       <article class="letter-card">
         <div class="letter-card__top"><span>UNSENT MESSAGE / RECOVERED</span><span>PRIVATE</span></div>
         <p class="eyebrow"><span>TO</span> <b data-recipient>[HER NAME]</b></p>
         <h2>A message beyond<br><em>the interface.</em></h2>
-        <div class="letter-copy" id="letterCopy"></div>
+        <div class="letter-fragment">
+          <span id="letterCounter">MESSAGE FRAGMENT 01 / 03</span>
+          <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
+        </div>
         <div class="letter-signature">— <span data-sender>[YOUR NAME]</span></div>
       </article>
-      <div class="letter__portrait asset-frame" data-asset="assets/rei-portrait.png" aria-hidden="true">
-        <img src="assets/rei-portrait.png" alt="Placeholder for a Rei Ayanami-inspired portrait">
-        <div class="asset-fallback"><span>PORTRAIT</span><b>assets/rei-portrait.png</b></div>
-      </div>
+      <button class="message-seal" id="letterSeal" type="button" aria-label="Hold to recover the next message fragment">
+        <span class="message-seal__rings" aria-hidden="true"><i></i><i></i><b>00</b></span>
+        <span><strong id="letterActionLabel">HOLD TO RECOVER NEXT FRAGMENT</strong><small>KEEP THE PRIVATE CHANNEL OPEN</small></span>
+      </button>
     </section>
 
-    <!-- 07 :: RESPONSE CHANNEL -->
-    <section class="scene" data-scene="response" data-chapter-number="07" aria-label="Response channel">
-      <span class="scene-glyph" aria-hidden="true">07</span>
-      <div class="response">
-        <p class="eyebrow"><span>FINAL PHASE</span>RESPONSE CHANNEL</p>
+    <section class="scene scene--response" data-scene="response" data-chapter="07" aria-label="Response channel" aria-hidden="true">
+      <span class="scene-code" aria-hidden="true">07</span>
+      <div class="response-panel">
+        <p class="eyebrow"><span>FINAL PHASE</span> RESPONSE CHANNEL</p>
         <h2>You do not have to answer<br><em>right now.</em></h2>
-        <p class="response__lead">This choice is only saved on this device and is not automatically sent to anyone.</p>
+        <p class="response-lead">This choice stays on this device and is not automatically sent to anyone.</p>
         <div class="response-options" id="responseOptions">
-          <button type="button" data-response="talk">I would like to talk about it</button>
-          <button type="button" data-response="time">I need a little time</button>
-          <button type="button" data-response="appreciate">I appreciate your honesty</button>
+          <button type="button" data-response="talk"><i aria-hidden="true"></i><span>I would like to talk about it</span></button>
+          <button type="button" data-response="time"><i aria-hidden="true"></i><span>I need a little time</span></button>
+          <button type="button" data-response="appreciate"><i aria-hidden="true"></i><span>I appreciate your honesty</span></button>
         </div>
-        <div class="response-feedback" id="responseFeedback" aria-live="polite">RESPONSE CHANNEL / WAITING</div>
-        <div class="response__close">
-          <span>TRANSMISSION COMPLETE — MADE SINCERELY BY <b data-sender>[YOUR NAME]</b></span>
-          <button class="text-button" id="changeResponse" type="button" hidden>CHANGE LOCAL RESPONSE</button>
-        </div>
+        <p class="response-feedback" id="responseFeedback" aria-live="polite">RESPONSE CHANNEL / WAITING</p>
+        <button class="text-button" id="changeResponse" type="button" hidden>CHANGE LOCAL RESPONSE</button>
+      </div>
+      <div class="ending-signal" id="endingSignal" aria-hidden="true">
+        <div class="ending-signal__orbits" aria-hidden="true"><i>A</i><i>M</i><b></b></div>
+        <strong>SIGNAL RECEIVED</strong>
+        <span>A QUIET CONNECTION REMAINS</span>
+        <small>TRANSMISSION BY <b data-sender>[YOUR NAME]</b></small>
+        <button class="text-button" id="replayButton" type="button">REPLAY TRANSMISSION</button>
       </div>
     </section>
   </main>
-
-  <!-- bottom thumb-zone navigation -->
-  <nav class="scene-nav" id="sceneNav" aria-label="Chapter navigation">
-    <button class="nav-btn nav-btn--back" id="navBack" type="button" aria-label="Previous chapter">‹ BACK</button>
-    <div class="scene-nav__dots" id="sceneDots" role="tablist" aria-label="Chapters"></div>
-    <button class="nav-btn nav-btn--next" id="navNext" type="button" aria-label="Next chapter">NEXT ›</button>
-  </nav>
 
   <audio id="ambientAudio" loop preload="none" src="assets/ambient.mp3"></audio>
   <audio id="interfaceAudio" preload="none" src="assets/interface.mp3"></audio>

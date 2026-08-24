@@ -34,26 +34,39 @@ const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const coarsePointer = window.matchMedia("(hover: none), (pointer: coarse)");
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function announce(message) {
   const region = $("#liveRegion");
   if (region) region.textContent = message;
 }
 
-/* ==========================================================================
-   CONTENT
-   ========================================================================== */
+function setupAppHeight() {
+  const update = () => {
+    const height = window.visualViewport?.height || window.innerHeight;
+    document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
+    if (typeof sceneManager !== "undefined" && sceneManager.state.current) {
+      sceneManager.updateChrome(sceneManager.state.current);
+    }
+  };
+  update();
+  window.addEventListener("resize", update, { passive: true });
+  window.addEventListener("orientationchange", update, { passive: true });
+  window.visualViewport?.addEventListener("resize", update, { passive: true });
+}
+
 function applyConfig() {
   $$('[data-recipient]').forEach((node) => { node.textContent = siteConfig.recipientName; });
   $$('[data-sender]').forEach((node) => { node.textContent = siteConfig.senderName; });
   const opening = $('[data-opening]');
   if (opening) opening.textContent = siteConfig.opening;
-  renderRecordDots();
-  renderTimelineDots();
-  renderLetter();
 }
 
+const decryptTimers = new WeakMap();
 function decryptText(element, finalText) {
+  if (!element) return;
+  const oldTimer = decryptTimers.get(element);
+  if (oldTimer) clearInterval(oldTimer);
   if (reduceMotion.matches) {
     element.textContent = finalText;
     return;
@@ -65,32 +78,14 @@ function decryptText(element, finalText) {
       if (char === " ") return " ";
       return index < iteration ? char : chars[Math.floor(Math.random() * chars.length)];
     }).join("");
-    iteration += 1.8;
+    iteration += 2.2;
     if (iteration >= finalText.length) {
       clearInterval(timer);
+      decryptTimers.delete(element);
       element.textContent = finalText;
     }
-  }, 22);
-}
-
-function renderLetter() {
-  const copy = $("#letterCopy");
-  if (!copy) return;
-  copy.innerHTML = "";
-  siteConfig.letter.forEach((text) => {
-    const paragraph = document.createElement("p");
-    paragraph.textContent = text;
-    copy.append(paragraph);
-  });
-}
-
-let letterRevealed = false;
-function revealLetterOnce() {
-  if (letterRevealed) return;
-  letterRevealed = true;
-  $$("#letterCopy p").forEach((paragraph, index) => {
-    window.setTimeout(() => paragraph.classList.add("is-visible"), reduceMotion.matches ? 0 : index * 480);
-  });
+  }, 20);
+  decryptTimers.set(element, timer);
 }
 
 function setupAssetFallbacks() {
@@ -105,236 +100,8 @@ function setupAssetFallbacks() {
   });
 }
 
-/* ==========================================================================
-   RECORDS (single-item pager)
-   ========================================================================== */
-function renderRecordDots() {
-  const wrap = $("#recordDots");
-  if (!wrap) return;
-  wrap.innerHTML = "";
-  siteConfig.records.forEach((record, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("aria-label", `Record ${index + 1} of ${siteConfig.records.length}`);
-    button.addEventListener("click", () => {
-      sceneManager.state.recordIndex = index;
-      showRecord(index);
-      playInterfaceSound();
-    });
-    wrap.append(button);
-  });
-}
-
-function showRecord(index) {
-  const record = siteConfig.records[index];
-  if (!record) return;
-  $("#recordNumber").textContent = String(index + 1).padStart(2, "0");
-  $("#recordCode").textContent = record.code;
-  $("#recordTitle").textContent = record.title;
-  const status = $("#recordStatus");
-  status.textContent = "DECRYPTING RECORD...";
-  const textEl = $("#recordText");
-  decryptText(textEl, record.text);
-  window.setTimeout(() => { status.textContent = "RECORD DECRYPTED"; }, reduceMotion.matches ? 0 : Math.min(900, record.text.length * 12));
-  $$("#recordDots button").forEach((button, i) => button.classList.toggle("is-active", i === index));
-  announce(`Personal record ${index + 1} of ${siteConfig.records.length}.`);
-}
-
-function recordStep(delta) {
-  const total = siteConfig.records.length;
-  const nextIndex = sceneManager.state.recordIndex + delta;
-  if (nextIndex < 0) { sceneManager.goTo("connection", { direction: "backward" }); return; }
-  if (nextIndex >= total) { sceneManager.goTo("timeline", { direction: "forward" }); return; }
-  sceneManager.state.recordIndex = nextIndex;
-  showRecord(nextIndex);
-  playInterfaceSound();
-}
-
-/* ==========================================================================
-   TIMELINE (single-item pager)
-   ========================================================================== */
-function renderTimelineDots() {
-  const wrap = $("#timelineDots");
-  if (!wrap) return;
-  wrap.innerHTML = "";
-  siteConfig.timeline.forEach((item, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("aria-label", `Milestone ${index + 1} of ${siteConfig.timeline.length}`);
-    button.addEventListener("click", () => {
-      sceneManager.state.timelineIndex = index;
-      showTimeline(index);
-      playInterfaceSound();
-    });
-    wrap.append(button);
-  });
-}
-
-function showTimeline(index) {
-  const item = siteConfig.timeline[index];
-  if (!item) return;
-  $("#timelinePhase").textContent = item.phase;
-  $("#timelineTitle").textContent = item.title;
-  $("#timelineText").textContent = item.text;
-  $("#timelineProgress").style.width = `${((index + 1) / siteConfig.timeline.length) * 100}%`;
-  $$("#timelineDots button").forEach((button, i) => button.classList.toggle("is-active", i === index));
-  announce(`Signal history ${index + 1} of ${siteConfig.timeline.length}.`);
-}
-
-function timelineStep(delta) {
-  const total = siteConfig.timeline.length;
-  const nextIndex = sceneManager.state.timelineIndex + delta;
-  if (nextIndex < 0) { sceneManager.goTo("records", { direction: "backward" }); return; }
-  if (nextIndex >= total) { sceneManager.goTo("barrier", { direction: "forward" }); return; }
-  sceneManager.state.timelineIndex = nextIndex;
-  showTimeline(nextIndex);
-  playInterfaceSound();
-}
-
-/* ==========================================================================
-   HOLD INTERACTION (shared by connection + barrier)
-   ========================================================================== */
-function createHoldInteraction(button, onProgress, onComplete, duration = 2200) {
-  if (!button) return;
-  let holding = false;
-  let completed = false;
-  let progress = 0;
-  let startedAt = 0;
-  let frame = 0;
-
-  const tick = (time) => {
-    if (!holding || completed) return;
-    if (!startedAt) startedAt = time - progress * duration;
-    progress = Math.min(1, (time - startedAt) / duration);
-    onProgress(progress);
-    if (progress >= 1) {
-      completed = true;
-      holding = false;
-      button.setAttribute("aria-pressed", "true");
-      onComplete();
-      return;
-    }
-    frame = requestAnimationFrame(tick);
-  };
-  const start = (event) => {
-    if (completed) return;
-    if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
-    event.preventDefault();
-    holding = true;
-    button.classList.add("is-active");
-    startedAt = performance.now() - progress * duration;
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(tick);
-  };
-  const stop = (event) => {
-    if (event?.type === "keyup" && !["Enter", " "].includes(event.key)) return;
-    holding = false;
-    button.classList.remove("is-active");
-    cancelAnimationFrame(frame);
-  };
-  button.addEventListener("pointerdown", start);
-  button.addEventListener("pointerup", stop);
-  button.addEventListener("pointercancel", stop);
-  button.addEventListener("pointerleave", stop);
-  button.addEventListener("keydown", start);
-  button.addEventListener("keyup", stop);
-  if (reduceMotion.matches) button.addEventListener("click", () => {
-    if (!completed) {
-      progress = 1;
-      onProgress(1);
-      completed = true;
-      onComplete();
-    }
-  });
-}
-
-function setupConnection() {
-  const panel = $("#syncPanel");
-  const button = $("#syncButton");
-  const value = $("#syncValue");
-  const line = $("#syncLine");
-  const status = $("#syncStatus");
-  const message = $("#syncMessage");
-  if (!panel || !button || !value || !line || !status || !message) return;
-  createHoldInteraction(button, (progress) => {
-    const percent = Math.round(progress * 100);
-    value.textContent = String(percent).padStart(2, "0");
-    line.style.width = `${percent}%`;
-    status.textContent = percent < 35 ? "SEARCHING" : percent < 72 ? "SIGNAL FOUND" : "BARRIER READING";
-  }, () => {
-    panel.classList.add("is-complete");
-    status.textContent = "CONNECTION ESTABLISHED";
-    message.textContent = siteConfig.syncMessage;
-    button.textContent = "SIGNALS CONNECTED";
-    button.disabled = true;
-    sceneManager.state.syncComplete = true;
-    sceneManager.refreshLocks();
-    announce("Signal connection complete. The next chapter is now unlocked.");
-    playInterfaceSound();
-  });
-}
-
-function setupBarrier() {
-  const scene = document.querySelector('.scene[data-scene="barrier"]');
-  const button = $("#barrierButton");
-  const number = $("#barrierNumber");
-  const bar = $("#barrierBar");
-  if (!scene || !button || !number || !bar) return;
-  createHoldInteraction(button, (progress) => {
-    number.textContent = String(Math.max(0, 100 - Math.round(progress * 100))).padStart(2, "0");
-    bar.style.width = `${progress * 100}%`;
-  }, () => {
-    scene.classList.add("is-open");
-    button.textContent = "MESSAGE RELEASED";
-    button.disabled = true;
-    sceneManager.state.barrierComplete = true;
-    sceneManager.refreshLocks();
-    announce("Barrier opened. The message can now be read.");
-    playInterfaceSound();
-  }, 2700);
-}
-
-function setupResponses() {
-  const options = $("#responseOptions");
-  const feedback = $("#responseFeedback");
-  const change = $("#changeResponse");
-  if (!options || !feedback || !change) return;
-  const apply = (key) => {
-    $$("button[data-response]", options).forEach((button) => {
-      const selected = button.dataset.response === key;
-      button.classList.toggle("is-selected", selected);
-      button.setAttribute("aria-pressed", String(selected));
-    });
-    feedback.textContent = siteConfig.responses[key] || "RESPONSE CHANNEL / WAITING";
-    change.hidden = !key;
-  };
-  options.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-response]");
-    if (!button) return;
-    const key = button.dataset.response;
-    localStorage.setItem("reiSignalResponse", key);
-    apply(key);
-    playInterfaceSound();
-  });
-  change.addEventListener("click", () => {
-    localStorage.removeItem("reiSignalResponse");
-    apply("");
-  });
-  apply(localStorage.getItem("reiSignalResponse") || "");
-}
-
-/* ==========================================================================
-   AUDIO
-   ========================================================================== */
-function playInterfaceSound() {
-  const audio = $("#interfaceAudio");
-  const enabled = $("#audioButton")?.getAttribute("aria-pressed") === "true";
-  if (!audio || !enabled) return;
-  audio.currentTime = 0;
-  audio.play().catch(() => {});
-}
-
 let ambientAudioActive = false;
+let lastInterfacePulse = 0;
 
 function updateAudioButton() {
   const button = $("#audioButton");
@@ -345,10 +112,10 @@ function updateAudioButton() {
 }
 
 function startAmbientAudio() {
-  const ambient = $("#ambientAudio");
-  if (!ambient) return;
-  ambient.volume = 0.34;
-  ambient.play().then(() => {
+  const audio = $("#ambientAudio");
+  if (!audio) return;
+  audio.volume = .34;
+  audio.play().then(() => {
     ambientAudioActive = true;
     updateAudioButton();
   }).catch(() => {
@@ -357,13 +124,23 @@ function startAmbientAudio() {
   });
 }
 
+function playInterfaceSound() {
+  const audio = $("#interfaceAudio");
+  if (!audio || !ambientAudioActive) return;
+  const now = performance.now();
+  if (now - lastInterfacePulse < 140) return;
+  lastInterfacePulse = now;
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+}
+
 function setupAudio() {
   const button = $("#audioButton");
   const ambient = $("#ambientAudio");
+  const ui = $("#interfaceAudio");
   if (!button || !ambient) return;
-  ambient.volume = 0.34;
-  const interfaceAudio = $("#interfaceAudio");
-  if (interfaceAudio) interfaceAudio.volume = 0.26;
+  ambient.volume = .34;
+  if (ui) ui.volume = .24;
   button.addEventListener("click", () => {
     if (ambientAudioActive) {
       ambient.pause();
@@ -375,7 +152,7 @@ function setupAudio() {
   });
   ambient.addEventListener("error", () => {
     ambientAudioActive = false;
-    button.textContent = "AUDIO / ADD FILE";
+    button.textContent = "AUDIO / N/A";
     button.setAttribute("aria-pressed", "false");
   }, { once: true });
   document.addEventListener("visibilitychange", () => {
@@ -384,16 +161,306 @@ function setupAudio() {
   });
 }
 
-/* ==========================================================================
-   BOOT
-   ========================================================================== */
+function createHoldInteraction(button, options) {
+  if (!button) return null;
+  const duration = options.duration || 1500;
+  let progress = 0;
+  let holding = false;
+  let completed = false;
+  let startedAt = 0;
+  let frame = 0;
+
+  const paint = (value) => {
+    progress = clamp(value, 0, 1);
+    button.style.setProperty("--hold-progress", `${progress * 100}%`);
+    options.onProgress?.(progress);
+  };
+
+  const tick = (time) => {
+    if (!holding || completed) return;
+    if (!startedAt) startedAt = time - progress * duration;
+    paint((time - startedAt) / duration);
+    if (progress >= 1) {
+      completed = true;
+      holding = false;
+      button.classList.remove("is-holding");
+      button.setAttribute("aria-pressed", "true");
+      options.onComplete?.();
+      return;
+    }
+    frame = requestAnimationFrame(tick);
+  };
+
+  const start = (event) => {
+    if (completed || button.disabled || sceneManager.state.transitioning) return;
+    if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    holding = true;
+    button.classList.add("is-holding");
+    startedAt = performance.now() - progress * duration;
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(tick);
+  };
+
+  const stop = (event) => {
+    if (event?.type === "keyup" && !["Enter", " "].includes(event.key)) return;
+    if (!holding) return;
+    holding = false;
+    button.classList.remove("is-holding");
+    cancelAnimationFrame(frame);
+    if (!completed) {
+      paint(0);
+      options.onCancel?.();
+    }
+  };
+
+  button.addEventListener("pointerdown", start);
+  button.addEventListener("pointerup", stop);
+  button.addEventListener("pointercancel", stop);
+  button.addEventListener("pointerleave", stop);
+  button.addEventListener("keydown", start);
+  button.addEventListener("keyup", stop);
+  if (reduceMotion.matches) {
+    button.addEventListener("click", () => {
+      if (completed || button.disabled) return;
+      paint(1);
+      completed = true;
+      options.onComplete?.();
+    });
+  }
+
+  return {
+    reset() {
+      completed = false;
+      holding = false;
+      startedAt = 0;
+      cancelAnimationFrame(frame);
+      button.classList.remove("is-holding");
+      button.removeAttribute("aria-pressed");
+      paint(0);
+    },
+    complete() {
+      if (completed) return;
+      paint(1);
+      completed = true;
+      options.onComplete?.();
+    }
+  };
+}
+
+function createHorizontalDrag(options) {
+  const { track, handle } = options;
+  if (!track || !handle) return null;
+  let progress = 0;
+  let dragging = false;
+  let completed = false;
+  let pointerId = null;
+  let startX = 0;
+  let startProgress = 0;
+
+  const maxDistance = () => Math.max(1, track.clientWidth - handle.offsetWidth - 7);
+  const paint = (value, animate = false) => {
+    progress = clamp(value, 0, 1);
+    handle.style.transition = animate ? "transform .28s cubic-bezier(.2,.8,.2,1)" : "none";
+    handle.style.setProperty("--drag-x", `${progress * maxDistance()}px`);
+    track.style.setProperty("--drag-progress", `${progress * 100}%`);
+    options.onProgress?.(progress);
+    if (animate) window.setTimeout(() => { handle.style.transition = ""; }, 300);
+  };
+
+  const finish = () => {
+    if (completed || progress < (options.threshold || .86)) {
+      if (!completed) paint(0, true);
+      return;
+    }
+    completed = true;
+    paint(1, true);
+    handle.classList.remove("is-dragging");
+    options.onComplete?.();
+  };
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (completed || sceneManager.state.transitioning) return;
+    event.preventDefault();
+    dragging = true;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startProgress = progress;
+    handle.classList.add("is-dragging");
+    handle.setPointerCapture?.(pointerId);
+  });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (!dragging || event.pointerId !== pointerId) return;
+    event.preventDefault();
+    paint(startProgress + (event.clientX - startX) / maxDistance());
+  });
+
+  const release = (event) => {
+    if (!dragging || (event.pointerId !== undefined && event.pointerId !== pointerId)) return;
+    dragging = false;
+    handle.classList.remove("is-dragging");
+    try { handle.releasePointerCapture?.(pointerId); } catch (_) {}
+    pointerId = null;
+    finish();
+  };
+  handle.addEventListener("pointerup", release);
+  handle.addEventListener("pointercancel", release);
+
+  handle.addEventListener("keydown", (event) => {
+    if (completed) return;
+    if (["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      paint(1, true);
+      completed = true;
+      options.onComplete?.();
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      paint(progress + .16, true);
+      if (progress >= (options.threshold || .86)) finish();
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      paint(progress - .16, true);
+    }
+  });
+
+  window.addEventListener("resize", () => paint(progress), { passive: true });
+  return {
+    reset() {
+      completed = false;
+      dragging = false;
+      handle.classList.remove("is-dragging");
+      paint(0, true);
+    },
+    set(value) { paint(value); }
+  };
+}
+
+const sceneOrder = ["hero", "connection", "records", "timeline", "barrier", "letter", "response"];
+const chapterMeta = {
+  hero: { number: "01", title: "SIGNAL DETECTED", transition: "SIGNAL RECOGNIZED" },
+  connection: { number: "02", title: "CONNECTION", transition: "EMOTIONAL FREQUENCY MATCHED" },
+  records: { number: "03", title: "PERSONAL RECORDS", transition: "PERSONAL RECORD CHANNEL OPEN" },
+  timeline: { number: "04", title: "SIGNAL HISTORY", transition: "MEMORY PATH RESTORED" },
+  barrier: { number: "05", title: "EMOTIONAL BARRIER", transition: "EMOTIONAL BARRIER DETECTED" },
+  letter: { number: "06", title: "PRIVATE MESSAGE", transition: "PRIVATE MESSAGE RECOVERED" },
+  response: { number: "07", title: "RESPONSE CHANNEL", transition: "RESPONSE CHANNEL OPEN" }
+};
+
+const savedUnlock = Number.parseInt(sessionStorage.getItem("reiSignalUnlocked") || "-1", 10);
+const sceneManager = {
+  state: {
+    current: "boot",
+    transitioning: false,
+    maxUnlocked: Number.isFinite(savedUnlock) ? savedUnlock : -1,
+    recordIndex: 0,
+    timelineIndex: 0,
+    letterIndex: 0
+  },
+
+  unlock(name) {
+    const index = sceneOrder.indexOf(name);
+    if (index < 0) return;
+    this.state.maxUnlocked = Math.max(this.state.maxUnlocked, index);
+    sessionStorage.setItem("reiSignalUnlocked", String(this.state.maxUnlocked));
+  },
+
+  canEnter(name) {
+    if (name === "boot") return true;
+    const index = sceneOrder.indexOf(name);
+    return index >= 0 && index <= this.state.maxUnlocked;
+  },
+
+  advanceTo(name) {
+    this.unlock(name);
+    this.goTo(name, { direction: "forward" });
+  },
+
+  goTo(name, options = {}) {
+    if (this.state.transitioning || name === this.state.current) return;
+    if (!this.canEnter(name)) return;
+    this.state.transitioning = true;
+    const overlay = $("#chapterTransition");
+    const targetMeta = chapterMeta[name];
+    $("#transitionNumber").textContent = targetMeta?.number || "00";
+    $("#transitionText").textContent = targetMeta?.transition || "RETURNING TO SIGNAL";
+    $("#transitionBar").style.width = "0%";
+    overlay?.classList.add("is-active");
+    requestAnimationFrame(() => { $("#transitionBar").style.width = "100%"; });
+
+    const swapDelay = reduceMotion.matches ? 30 : 360;
+    const finishDelay = reduceMotion.matches ? 60 : 760;
+    window.setTimeout(() => {
+      this.swap(name);
+      this.state.current = name;
+      this.updateChrome(name);
+      this.updateHash(name, options.historyMode);
+    }, swapDelay);
+    window.setTimeout(() => {
+      overlay?.classList.remove("is-active");
+      this.state.transitioning = false;
+      onSceneEntered(name);
+      const scene = $(`.scene[data-scene="${name}"]`);
+      scene?.setAttribute("tabindex", "-1");
+      scene?.focus({ preventScroll: true });
+    }, finishDelay);
+  },
+
+  swap(name) {
+    $$(".scene").forEach((scene) => {
+      const active = scene.dataset.scene === name;
+      scene.classList.toggle("is-active", active);
+      scene.setAttribute("aria-hidden", String(!active));
+    });
+    document.body.dataset.activeScene = name;
+  },
+
+  updateHash(name, mode) {
+    if (mode === "skip") return;
+    const hash = `#${name}`;
+    if (mode === "replace" || !location.hash) history.replaceState({ scene: name }, "", hash);
+    else if (location.hash !== hash) history.pushState({ scene: name }, "", hash);
+  },
+
+  updateChrome(name) {
+    const label = $("#topbarChapter");
+    if (label) {
+      const compact = window.innerWidth < 560;
+      label.textContent = name === "boot"
+        ? "SYSTEM BOOT"
+        : compact
+          ? `CH. ${chapterMeta[name].number} / 07`
+          : `CH. ${chapterMeta[name].number} / 07 — ${chapterMeta[name].title}`;
+    }
+    const currentIndex = sceneOrder.indexOf(name);
+    $$("#chapterPips i").forEach((pip, index) => {
+      pip.classList.toggle("is-active", index === currentIndex);
+      pip.classList.toggle("is-past", index < currentIndex);
+    });
+  },
+
+  buildPips() {
+    const wrap = $("#chapterPips");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    sceneOrder.forEach(() => wrap.append(document.createElement("i")));
+  }
+};
+
+let bootHold;
+let heroDrag;
+let connectionHold;
+let recordDrag;
+let timelineDrag;
+let barrierHold;
+let letterHold;
+
 function setupBoot() {
   const bar = $("#bootBar");
   const percent = $("#bootPercent");
   const log = $("#bootLog");
-  const enter = $("#enterButton");
-  const skip = $("#skipButton");
-  if (!bar || !percent || !log || !enter || !skip) return;
+  const button = $("#enterButton");
+  if (!bar || !percent || !log || !button) return;
   const logs = [
     "INITIALIZING PRIVATE TRANSMISSION...",
     "EMOTIONAL SIGNAL DETECTED...",
@@ -402,18 +469,17 @@ function setupBoot() {
     "UNSENT MESSAGE RECOVERED...",
     "TRANSMISSION READY."
   ];
-  let value = reduceMotion.matches ? 100 : 0;
-  let timer;
+  let value = sessionStorage.getItem("reiSignalIntro") === "seen" || reduceMotion.matches ? 100 : 0;
   const finish = () => {
     value = 100;
     bar.style.width = "100%";
     percent.textContent = "100";
     log.textContent = logs.at(-1);
-    enter.disabled = false;
+    button.disabled = false;
   };
   if (value === 100) finish();
   else {
-    timer = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       value = Math.min(100, value + Math.ceil(Math.random() * 5));
       bar.style.width = `${value}%`;
       percent.textContent = String(value).padStart(2, "0");
@@ -422,49 +488,314 @@ function setupBoot() {
         clearInterval(timer);
         finish();
       }
-    }, 105);
+    }, 90);
   }
-  const enterSignal = () => {
-    clearInterval(timer);
-    startAmbientAudio();
-    sessionStorage.setItem("reiSignalIntro", "seen");
-    sceneManager.goTo("hero", { historyMode: "replace" });
-  };
-  enter.addEventListener("click", enterSignal);
-  skip.addEventListener("click", () => { finish(); enterSignal(); });
+  bootHold = createHoldInteraction(button, {
+    duration: 1250,
+    onComplete: () => {
+      startAmbientAudio();
+      playInterfaceSound();
+      sessionStorage.setItem("reiSignalIntro", "seen");
+      sceneManager.advanceTo("hero");
+    }
+  });
 }
 
-function setupReplay() {
-  // The "REPLAY" action lives on the bottom-nav Next button while on the
-  // response chapter (see sceneManager.updateNavButtons). This clears the
-  // one-time boot flag so the intro plays again; the saved response choice
-  // is intentionally left in localStorage.
-  window.reiSignalReplay = () => {
+function setupHeroInteraction() {
+  const track = $("#heroSignalTrack");
+  const handle = $("#heroSignalHandle");
+  const align = $("#heroSignalAlign");
+  const beam = $("#heroSignalBeam");
+  const distance = $("#heroSignalDistance");
+  heroDrag = createHorizontalDrag({
+    track,
+    handle,
+    threshold: .82,
+    onProgress: (progress) => {
+      if (beam) beam.style.width = `${progress * Math.max(0, track.clientWidth - 62)}px`;
+      if (distance) distance.textContent = String(Math.round((1 - progress) * 100)).padStart(2, "0");
+    },
+    onComplete: () => {
+      align?.classList.add("is-complete");
+      announce("Both signals are aligned.");
+      playInterfaceSound();
+      window.setTimeout(() => sceneManager.advanceTo("connection"), reduceMotion.matches ? 40 : 650);
+    }
+  });
+}
+
+function resetConnectionView() {
+  $("#syncPanel")?.classList.remove("is-complete");
+  $("#syncValue").textContent = "00";
+  $("#syncLine").style.width = "0%";
+  $("#syncStatus").textContent = "CONNECTION STANDBY";
+  $("#syncMessage").textContent = "The signal has not been sent yet.";
+  const button = $("#syncButton");
+  if (button) {
+    button.disabled = false;
+    button.querySelector("span").textContent = "PRESS & HOLD TO CONNECT";
+  }
+}
+
+function setupConnection() {
+  const panel = $("#syncPanel");
+  const button = $("#syncButton");
+  const value = $("#syncValue");
+  const line = $("#syncLine");
+  const status = $("#syncStatus");
+  const message = $("#syncMessage");
+  connectionHold = createHoldInteraction(button, {
+    duration: 1800,
+    onProgress: (progress) => {
+      const amount = Math.round(progress * 100);
+      value.textContent = String(amount).padStart(2, "0");
+      line.style.width = `${amount}%`;
+      status.textContent = amount < 34 ? "SEARCHING" : amount < 72 ? "SIGNAL FOUND" : "FREQUENCY MATCHED";
+    },
+    onComplete: () => {
+      panel.classList.add("is-complete");
+      status.textContent = "CONNECTION ESTABLISHED";
+      message.textContent = siteConfig.syncMessage;
+      button.querySelector("span").textContent = "SIGNALS CONNECTED";
+      announce("Signal connection complete.");
+      playInterfaceSound();
+      window.setTimeout(() => sceneManager.advanceTo("records"), reduceMotion.matches ? 40 : 750);
+    }
+  });
+}
+
+function showRecord(index) {
+  const record = siteConfig.records[index];
+  if (!record) return;
+  sceneManager.state.recordIndex = index;
+  $("#recordCounter").textContent = `RECORD ${String(index + 1).padStart(2, "0")} / ${String(siteConfig.records.length).padStart(2, "0")}`;
+  $("#recordCode").textContent = record.code;
+  $("#recordNumber").textContent = String(index + 1).padStart(2, "0");
+  $("#recordTitle").textContent = record.title;
+  $("#recordStatus").textContent = "PERSONAL RECORD READY";
+  $("#recordCard")?.classList.remove("is-decrypting");
+  decryptText($("#recordText"), record.text);
+  $("#recordActionLabel").textContent = index === siteConfig.records.length - 1 ? "SWIPE TO COMPLETE THE MEMORY ARCHIVE" : "SWIPE TO DECRYPT THIS MEMORY";
+  recordDrag?.reset();
+  announce(`Personal record ${index + 1} of ${siteConfig.records.length}.`);
+}
+
+function setupRecords() {
+  const track = $("#recordTrack");
+  const handle = $("#recordHandle");
+  recordDrag = createHorizontalDrag({
+    track,
+    handle,
+    threshold: .84,
+    onProgress: (progress) => {
+      $("#recordTrackFill")?.style.setProperty("width", `${progress * 100}%`);
+      $("#recordScan")?.style.setProperty("width", `${progress * 100}%`);
+    },
+    onComplete: () => {
+      $("#recordCard")?.classList.add("is-decrypting");
+      $("#recordStatus").textContent = "RECORD DECRYPTED";
+      playInterfaceSound();
+      const next = sceneManager.state.recordIndex + 1;
+      window.setTimeout(() => {
+        if (next < siteConfig.records.length) showRecord(next);
+        else sceneManager.advanceTo("timeline");
+      }, reduceMotion.matches ? 40 : 650);
+    }
+  });
+}
+
+function showTimeline(index) {
+  const item = siteConfig.timeline[index];
+  if (!item) return;
+  sceneManager.state.timelineIndex = index;
+  $("#timelineCounter").textContent = `MILESTONE ${String(index + 1).padStart(2, "0")} / ${String(siteConfig.timeline.length).padStart(2, "0")}`;
+  $("#timelinePhase").textContent = item.phase;
+  $("#timelineTitle").textContent = item.title;
+  decryptText($("#timelineText"), item.text);
+  $("#timelineActionLabel").textContent = index === siteConfig.timeline.length - 1 ? "TRACE THE FINAL MEMORY PATH" : "TRACE THE MEMORY PATH";
+  timelineDrag?.reset();
+  announce(`Signal history ${index + 1} of ${siteConfig.timeline.length}.`);
+}
+
+function setupTimeline() {
+  const track = $("#timelineTrack");
+  const handle = $("#timelineHandle");
+  timelineDrag = createHorizontalDrag({
+    track,
+    handle,
+    threshold: .84,
+    onProgress: (progress) => {
+      $("#timelineTrackFill")?.style.setProperty("width", `${progress * 100}%`);
+    },
+    onComplete: () => {
+      playInterfaceSound();
+      const next = sceneManager.state.timelineIndex + 1;
+      window.setTimeout(() => {
+        if (next < siteConfig.timeline.length) showTimeline(next);
+        else sceneManager.advanceTo("barrier");
+      }, reduceMotion.matches ? 40 : 650);
+    }
+  });
+}
+
+function resetBarrierView() {
+  const scene = $('.scene[data-scene="barrier"]');
+  scene?.classList.remove("is-open");
+  $("#barrierNumber").textContent = "100";
+  $("#barrierBar").style.width = "0%";
+  const button = $("#barrierButton");
+  if (button) button.querySelector("span").textContent = "HOLD TO OPEN THE BARRIER";
+}
+
+function setupBarrier() {
+  const scene = $('.scene[data-scene="barrier"]');
+  const button = $("#barrierButton");
+  barrierHold = createHoldInteraction(button, {
+    duration: 2100,
+    onProgress: (progress) => {
+      $("#barrierNumber").textContent = String(Math.max(0, 100 - Math.round(progress * 100))).padStart(2, "0");
+      $("#barrierBar").style.width = `${progress * 100}%`;
+    },
+    onComplete: () => {
+      scene?.classList.add("is-open");
+      button.querySelector("span").textContent = "BARRIER OPENED";
+      announce("The barrier is open. The private message can be recovered.");
+      playInterfaceSound();
+      window.setTimeout(() => sceneManager.advanceTo("letter"), reduceMotion.matches ? 40 : 850);
+    }
+  });
+}
+
+function showLetterFragment(index) {
+  const text = siteConfig.letter[index];
+  if (!text) return;
+  sceneManager.state.letterIndex = index;
+  const copy = $("#letterCopy");
+  copy.innerHTML = "";
+  const paragraph = document.createElement("p");
+  paragraph.textContent = text;
+  copy.append(paragraph);
+  requestAnimationFrame(() => paragraph.classList.add("is-visible"));
+  $("#letterCounter").textContent = `MESSAGE FRAGMENT ${String(index + 1).padStart(2, "0")} / ${String(siteConfig.letter.length).padStart(2, "0")}`;
+  $("#letterActionLabel").textContent = index === siteConfig.letter.length - 1 ? "HOLD TO OPEN THE RESPONSE CHANNEL" : "HOLD TO RECOVER NEXT FRAGMENT";
+  const sealNumber = $("#letterSeal .message-seal__rings b");
+  if (sealNumber) sealNumber.textContent = String(index + 1).padStart(2, "0");
+  letterHold?.reset();
+  announce(`Private message fragment ${index + 1} of ${siteConfig.letter.length}.`);
+}
+
+function setupLetter() {
+  const seal = $("#letterSeal");
+  letterHold = createHoldInteraction(seal, {
+    duration: 1150,
+    onComplete: () => {
+      playInterfaceSound();
+      const next = sceneManager.state.letterIndex + 1;
+      window.setTimeout(() => {
+        if (next < siteConfig.letter.length) showLetterFragment(next);
+        else sceneManager.advanceTo("response");
+      }, reduceMotion.matches ? 40 : 520);
+    }
+  });
+}
+
+function setupResponses() {
+  const options = $("#responseOptions");
+  const feedback = $("#responseFeedback");
+  const change = $("#changeResponse");
+  const ending = $("#endingSignal");
+  if (!options || !feedback || !change || !ending) return;
+
+  const apply = (key) => {
+    $$("button[data-response]", options).forEach((button) => {
+      const selected = button.dataset.response === key;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    feedback.textContent = siteConfig.responses[key] || "RESPONSE CHANNEL / WAITING";
+    change.hidden = !key;
+  };
+
+  options.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-response]");
+    if (!button) return;
+    const key = button.dataset.response;
+    localStorage.setItem("reiSignalResponse", key);
+    apply(key);
+    playInterfaceSound();
+    window.setTimeout(() => {
+      ending.classList.add("is-visible");
+      ending.setAttribute("aria-hidden", "false");
+      announce("Signal received. Transmission complete.");
+    }, reduceMotion.matches ? 30 : 700);
+  });
+
+  change.addEventListener("click", () => {
+    localStorage.removeItem("reiSignalResponse");
+    apply("");
+  });
+  apply(localStorage.getItem("reiSignalResponse") || "");
+
+  $("#replayButton")?.addEventListener("click", () => {
     sessionStorage.removeItem("reiSignalIntro");
-    window.location.hash = "";
-    window.location.reload();
-  };
+    sessionStorage.removeItem("reiSignalUnlocked");
+    localStorage.removeItem("reiSignalResponse");
+    location.hash = "";
+    location.reload();
+  });
 }
 
-/* ==========================================================================
-   AMBIENT VISUALS
-   ========================================================================== */
-function setupPointerLight() {
-  const light = $("#pointerLight");
-  if (!light || coarsePointer.matches || reduceMotion.matches) return;
-  let x = innerWidth / 2;
-  let y = innerHeight / 2;
-  let targetX = x;
-  let targetY = y;
-  document.addEventListener("pointermove", (event) => { targetX = event.clientX; targetY = event.clientY; }, { passive: true });
-  const move = () => {
-    x += (targetX - x) * 0.12;
-    y += (targetY - y) * 0.12;
-    light.style.left = `${x}px`;
-    light.style.top = `${y}px`;
-    requestAnimationFrame(move);
-  };
-  move();
+function onSceneEntered(name) {
+  if (name === "boot") {
+    $("#enterButton").disabled = false;
+    bootHold?.reset();
+  }
+  if (name === "hero" && sceneManager.state.maxUnlocked > 0) {
+    $("#heroSignalAlign")?.classList.remove("is-complete");
+    heroDrag?.reset();
+  }
+  if (name === "connection" && sceneManager.state.maxUnlocked > 1) {
+    resetConnectionView();
+    connectionHold?.reset();
+  }
+  if (name === "records") showRecord(sceneManager.state.recordIndex);
+  if (name === "timeline") showTimeline(sceneManager.state.timelineIndex);
+  if (name === "barrier" && sceneManager.state.maxUnlocked > 4) {
+    resetBarrierView();
+    barrierHold?.reset();
+  }
+  if (name === "letter") showLetterFragment(sceneManager.state.letterIndex);
+}
+
+function setupHistory() {
+  window.addEventListener("popstate", () => {
+    if (sceneManager.state.transitioning) return;
+    const target = (location.hash || "").slice(1);
+    if (target === "boot" || !target) {
+      sceneManager.goTo("boot", { historyMode: "skip" });
+      return;
+    }
+    if (sceneManager.canEnter(target)) sceneManager.goTo(target, { historyMode: "skip" });
+  });
+}
+
+function bootstrapScene() {
+  sceneManager.buildPips();
+  const introSeen = sessionStorage.getItem("reiSignalIntro") === "seen";
+  const requested = (location.hash || "").slice(1);
+  let initial = "boot";
+  if (introSeen) {
+    if (sceneManager.canEnter(requested)) initial = requested;
+    else {
+      sceneManager.unlock("hero");
+      initial = "hero";
+    }
+  }
+  sceneManager.swap(initial);
+  sceneManager.state.current = initial;
+  sceneManager.updateChrome(initial);
+  history.replaceState({ scene: initial }, "", `#${initial}`);
+  onSceneEntered(initial);
 }
 
 function setupAmbientCanvas() {
@@ -475,350 +806,68 @@ function setupAmbientCanvas() {
   let particles = [];
   let width = 0;
   let height = 0;
-  let animationFrame = 0;
+  let frame = 0;
+
   const resize = () => {
     const ratio = Math.min(devicePixelRatio || 1, 1.5);
     width = innerWidth;
-    height = innerHeight;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
+    height = window.visualViewport?.height || innerHeight;
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const count = coarsePointer.matches ? 16 : 40;
+    const count = coarsePointer.matches ? 16 : 38;
     particles = Array.from({ length: count }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 2 + .5,
-      speed: Math.random() * .24 + .08,
-      drift: Math.random() * .16 - .08
+      size: Math.random() * 1.7 + .4,
+      speed: Math.random() * .22 + .06,
+      drift: Math.random() * .14 - .07
     }));
   };
+
   const draw = () => {
     if (document.hidden) return;
     context.clearRect(0, 0, width, height);
-    context.fillStyle = "rgba(0, 159, 227, .45)";
+    context.fillStyle = "rgba(0, 159, 227, .42)";
     particles.forEach((particle) => {
       particle.y -= particle.speed;
       particle.x += particle.drift;
-      if (particle.y < -5) { particle.y = height + 5; particle.x = Math.random() * width; }
+      if (particle.y < -5) {
+        particle.y = height + 5;
+        particle.x = Math.random() * width;
+      }
       context.beginPath();
       context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       context.fill();
     });
-    animationFrame = requestAnimationFrame(draw);
+    frame = requestAnimationFrame(draw);
   };
+
   window.addEventListener("resize", resize, { passive: true });
   document.addEventListener("visibilitychange", () => {
-    cancelAnimationFrame(animationFrame);
+    cancelAnimationFrame(frame);
     if (!document.hidden) draw();
   });
   resize();
   draw();
 }
 
-/* ==========================================================================
-   SCENE MANAGER
-   Fullscreen chapters, cinematic transitions, hash sync, swipe + keyboard.
-   ========================================================================== */
-const sceneOrder = ["hero", "connection", "records", "timeline", "barrier", "letter", "response"];
-const chapterMeta = {
-  hero: { num: "01", title: "SIGNAL DETECTED", transition: "LOCKING ONTO SIGNAL..." },
-  connection: { num: "02", title: "CONNECTION", transition: "ESTABLISHING CONNECTION..." },
-  records: { num: "03", title: "PERSONAL RECORDS", transition: "DECRYPTING PERSONAL RECORD..." },
-  timeline: { num: "04", title: "SIGNAL HISTORY", transition: "TRACING SIGNAL HISTORY..." },
-  barrier: { num: "05", title: "EMOTIONAL BARRIER", transition: "A.T. FIELD DETECTED..." },
-  letter: { num: "06", title: "PRIVATE MESSAGE", transition: "RECOVERING PRIVATE MESSAGE..." },
-  response: { num: "07", title: "RESPONSE CHANNEL", transition: "OPENING RESPONSE CHANNEL..." }
-};
-
-const sceneManager = {
-  state: {
-    current: "boot",
-    transitioning: false,
-    syncComplete: false,
-    barrierComplete: false,
-    recordIndex: 0,
-    timelineIndex: 0
-  },
-
-  maxUnlockedIndex() {
-    if (!this.state.syncComplete) return 1;      // hero, connection
-    if (!this.state.barrierComplete) return 4;   // + records, timeline, barrier
-    return sceneOrder.length - 1;                // everything
-  },
-
-  canEnter(name) {
-    const idx = sceneOrder.indexOf(name);
-    if (idx < 0) return name === "boot";
-    return idx <= this.maxUnlockedIndex();
-  },
-
-  computeDirection(targetName) {
-    const curIdx = sceneOrder.indexOf(this.state.current);
-    const tgtIdx = sceneOrder.indexOf(targetName);
-    if (curIdx < 0 || tgtIdx < 0) return "forward";
-    return tgtIdx >= curIdx ? "forward" : "backward";
-  },
-
-  goTo(name, opts = {}) {
-    if (this.state.transitioning) return;
-    if (name === this.state.current && !opts.force) return;
-    if (name !== "boot" && !this.canEnter(name)) {
-      const fallback = sceneOrder[this.maxUnlockedIndex()];
-      this.lockedHint();
-      if (fallback === this.state.current || !fallback) return;
-      name = fallback;
-    }
-    this.transitionTo(name, opts);
-  },
-
-  lockedHint() {
-    const next = $("#navNext");
-    if (next) {
-      next.classList.remove("is-locked");
-      void next.offsetWidth;
-      next.classList.add("is-locked");
-    }
-    announce("Complete this step before continuing.");
-  },
-
-  transitionTo(targetName, opts) {
-    this.state.transitioning = true;
-    const direction = opts.direction || this.computeDirection(targetName);
-    this.playOverlay(targetName, () => {
-      this.swapScene(targetName);
-      this.updateChrome(targetName);
-      this.updateHash(targetName, opts.historyMode);
-      this.state.current = targetName;
-      this.state.transitioning = false;
-
-      if (targetName === "records") {
-        this.state.recordIndex = direction === "backward" ? siteConfig.records.length - 1 : 0;
-        showRecord(this.state.recordIndex);
-      }
-      if (targetName === "timeline") {
-        this.state.timelineIndex = direction === "backward" ? siteConfig.timeline.length - 1 : 0;
-        showTimeline(this.state.timelineIndex);
-      }
-      if (targetName === "letter") revealLetterOnce();
-
-      const el = document.querySelector(`.scene[data-scene="${targetName}"]`);
-      if (el) { el.setAttribute("tabindex", "-1"); el.focus({ preventScroll: true }); }
-    });
-  },
-
-  playOverlay(targetName, callback) {
-    const overlay = $("#chapterTransition");
-    const numberEl = $("#transitionNumber");
-    const textEl = $("#transitionText");
-    const bar = $("#transitionBar");
-    if (!overlay) { callback(); return; }
-    const meta = chapterMeta[targetName];
-    numberEl.textContent = meta ? meta.num : "00";
-    textEl.textContent = meta ? meta.transition : "RETURNING TO BOOT...";
-    bar.style.width = "0%";
-    overlay.classList.add("is-active");
-    requestAnimationFrame(() => { bar.style.width = "100%"; });
-    const holdTime = reduceMotion.matches ? 80 : 620;
-    window.setTimeout(() => {
-      callback();
-      window.setTimeout(() => overlay.classList.remove("is-active"), reduceMotion.matches ? 40 : 220);
-    }, holdTime);
-  },
-
-  swapScene(targetName) {
-    $$(".scene").forEach((scene) => scene.classList.remove("is-active"));
-    const target = document.querySelector(`.scene[data-scene="${targetName}"]`);
-    if (target) target.classList.add("is-active");
-    document.body.dataset.activeScene = targetName;
-  },
-
-  updateHash(name, mode) {
-    const hash = `#${name}`;
-    if (mode === "skip") return;
-    if (mode === "replace" || location.hash === "") history.replaceState({ scene: name }, "", hash);
-    else if (location.hash !== hash) history.pushState({ scene: name }, "", hash);
-  },
-
-  updateChrome(targetName) {
-    const topbar = $("#topbarChapter");
-    if (topbar) topbar.textContent = targetName === "boot" ? "SYSTEM BOOT" : `CH. ${chapterMeta[targetName].num} / 07 — ${chapterMeta[targetName].title}`;
-    this.updateNavButtons(targetName);
-    this.updateDots(targetName);
-  },
-
-  updateNavButtons(targetName) {
-    const back = $("#navBack");
-    const next = $("#navNext");
-    if (!back || !next) return;
-    if (targetName === "boot") return;
-    const idx = sceneOrder.indexOf(targetName);
-    back.disabled = idx <= 0;
-
-    if (targetName === "response") {
-      next.textContent = "REPLAY ↻";
-      next.setAttribute("aria-label", "Replay the whole experience");
-      next.disabled = false;
-    } else {
-      next.textContent = "NEXT ›";
-      next.setAttribute("aria-label", "Next chapter");
-      const locked = (targetName === "connection" && !this.state.syncComplete) ||
-                     (targetName === "barrier" && !this.state.barrierComplete);
-      next.disabled = locked;
-    }
-  },
-
-  buildDots() {
-    const wrap = $("#sceneDots");
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    sceneOrder.forEach((name) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.scene = name;
-      button.setAttribute("role", "tab");
-      button.setAttribute("aria-label", chapterMeta[name].title);
-      button.addEventListener("click", () => { this.goTo(name); playInterfaceSound(); });
-      wrap.append(button);
-    });
-  },
-
-  updateDots(targetName) {
-    const maxIdx = this.maxUnlockedIndex();
-    $$("#sceneDots button").forEach((button, i) => {
-      button.classList.toggle("is-active", button.dataset.scene === targetName);
-      const reachable = i <= maxIdx;
-      button.disabled = !reachable;
-      button.setAttribute("aria-selected", String(button.dataset.scene === targetName));
-    });
-  },
-
-  refreshLocks() {
-    this.updateNavButtons(this.state.current);
-    this.updateDots(this.state.current);
-  }
-};
-
-function handleDirectionalInput(direction) {
-  if (sceneManager.state.current === "records") { recordStep(direction === "forward" ? 1 : -1); return; }
-  if (sceneManager.state.current === "timeline") { timelineStep(direction === "forward" ? 1 : -1); return; }
-  const back = $("#navBack");
-  const next = $("#navNext");
-  if (direction === "forward") {
-    if (!next || next.disabled) { sceneManager.lockedHint(); return; }
-    next.click();
-  } else {
-    if (!back || back.disabled) return;
-    back.click();
-  }
-}
-
-function setupSceneNav() {
-  const back = $("#navBack");
-  const next = $("#navNext");
-  const viewport = $("#sceneViewport");
-  if (!back || !next || !viewport) return;
-
-  back.addEventListener("click", () => {
-    if (back.disabled) return;
-    const idx = sceneOrder.indexOf(sceneManager.state.current);
-    if (idx <= 0) return;
-    playInterfaceSound();
-    sceneManager.goTo(sceneOrder[idx - 1], { direction: "backward" });
-  });
-
-  next.addEventListener("click", () => {
-    if (sceneManager.state.current === "response") {
-      playInterfaceSound();
-      window.reiSignalReplay?.();
-      return;
-    }
-    if (next.disabled) { sceneManager.lockedHint(); return; }
-    const idx = sceneOrder.indexOf(sceneManager.state.current);
-    const target = sceneOrder[idx + 1];
-    if (!target) return;
-    playInterfaceSound();
-    sceneManager.goTo(target, { direction: "forward" });
-  });
-
-  $("#recordPrev")?.addEventListener("click", () => recordStep(-1));
-  $("#recordNext")?.addEventListener("click", () => recordStep(1));
-  $("#timelinePrev")?.addEventListener("click", () => timelineStep(-1));
-  $("#timelineNext")?.addEventListener("click", () => timelineStep(1));
-
-  document.addEventListener("keydown", (event) => {
-    if (sceneManager.state.current === "boot") return;
-    if (event.target instanceof HTMLElement && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
-    if (event.key === "ArrowRight") handleDirectionalInput("forward");
-    else if (event.key === "ArrowLeft") handleDirectionalInput("backward");
-  });
-
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartT = 0;
-  let swiping = false;
-  viewport.addEventListener("touchstart", (event) => {
-    if (sceneManager.state.transitioning || sceneManager.state.current === "boot") return;
-    const touch = event.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    touchStartT = Date.now();
-    swiping = true;
-  }, { passive: true });
-  viewport.addEventListener("touchend", (event) => {
-    if (!swiping) return;
-    swiping = false;
-    if (sceneManager.state.transitioning || sceneManager.state.current === "boot") return;
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - touchStartX;
-    const dy = touch.clientY - touchStartY;
-    const dt = Date.now() - touchStartT;
-    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.4 || dt > 700) return;
-    handleDirectionalInput(dx < 0 ? "forward" : "backward");
-  }, { passive: true });
-
-  window.addEventListener("popstate", () => {
-    if (sceneManager.state.transitioning) return;
-    const raw = (location.hash || "").slice(1);
-    if (raw === "boot" || raw === "") return;
-    const target = sceneOrder.includes(raw) ? raw : "hero";
-    if (target === sceneManager.state.current) return;
-    sceneManager.goTo(target, { historyMode: "skip" });
-  });
-}
-
-function bootstrapScene() {
-  sceneManager.buildDots();
-  const introSeen = sessionStorage.getItem("reiSignalIntro") === "seen";
-  let initial = "boot";
-  if (introSeen) {
-    const raw = (location.hash || "").slice(1);
-    initial = (sceneOrder.includes(raw) && sceneManager.canEnter(raw)) ? raw : "hero";
-  }
-  sceneManager.swapScene(initial);
-  sceneManager.state.current = initial;
-  sceneManager.updateChrome(initial);
-  history.replaceState({ scene: initial }, "", `#${initial}`);
-  if (initial === "records") showRecord(sceneManager.state.recordIndex);
-  if (initial === "timeline") showTimeline(sceneManager.state.timelineIndex);
-  if (initial === "letter") revealLetterOnce();
-}
-
-/* ==========================================================================
-   INIT
-   ========================================================================== */
 function init() {
+  setupAppHeight();
   applyConfig();
   setupAssetFallbacks();
-  setupBoot();
-  setupConnection();
-  setupBarrier();
-  setupResponses();
   setupAudio();
-  setupReplay();
-  setupSceneNav();
-  setupPointerLight();
+  setupBoot();
+  setupHeroInteraction();
+  setupConnection();
+  setupRecords();
+  setupTimeline();
+  setupBarrier();
+  setupLetter();
+  setupResponses();
+  setupHistory();
   setupAmbientCanvas();
   bootstrapScene();
 }
