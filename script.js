@@ -1,6 +1,6 @@
 /* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
-   Interaction Architecture, Mechanics & State Controller (AI #3)
+   Interaction Architecture, Mechanics & Geometry Controller (AI #3 Recovery)
    ========================================================================== */
 
 const siteConfig = {
@@ -188,18 +188,24 @@ const hintController = {
     if (!this.activeGuide) return;
 
     this.level = 1;
-    this.activeGuide.dataset.hintLevel = "1";
+    this.activeGuide.setAttribute("data-hint-level", "1");
+    this.activeGuide.classList.remove("is-softened");
     this.updateInstruction();
 
     const replayBtn = this.activeGuide.querySelector("[data-hint-replay]");
     if (replayBtn) {
       replayBtn.onclick = () => {
         this.level = 2;
-        this.activeGuide.dataset.hintLevel = "2";
+        this.activeGuide.setAttribute("data-hint-level", "2");
       };
     }
 
-    // Schedule progressive levels on idle
+    this.scheduleTimers();
+  },
+
+  scheduleTimers() {
+    this.timers.forEach(t => clearTimeout(t));
+    this.timers = [];
     this.timers.push(window.setTimeout(() => this.setLevel(2), 3200));
     this.timers.push(window.setTimeout(() => this.setLevel(3), 7500));
     this.timers.push(window.setTimeout(() => this.setLevel(4), 12500));
@@ -208,12 +214,13 @@ const hintController = {
   setLevel(lvl) {
     if (!this.activeGuide) return;
     this.level = Math.max(this.level, lvl);
-    this.activeGuide.dataset.hintLevel = String(this.level);
+    this.activeGuide.setAttribute("data-hint-level", String(this.level));
   },
 
   notifyProgress() {
     if (!this.activeGuide) return;
-    this.activeGuide.style.opacity = "0.35";
+    this.activeGuide.classList.add("is-softened");
+    this.scheduleTimers();
   },
 
   updateInstruction() {
@@ -235,8 +242,39 @@ const hintController = {
     this.timers.forEach(t => clearTimeout(t));
     this.timers = [];
     if (this.activeGuide) {
-      this.activeGuide.style.opacity = "";
+      this.activeGuide.classList.remove("is-softened");
       this.activeGuide = null;
+    }
+  }
+};
+
+/* --------------------------------------------------------------------------
+   CENTRAL DEBOUNCED GEOMETRY MANAGER
+   -------------------------------------------------------------------------- */
+const geometryManager = {
+  timeoutId: null,
+
+  init() {
+    const trigger = () => this.queueRecalculate();
+    window.addEventListener("resize", trigger, { passive: true });
+    window.addEventListener("orientationchange", trigger, { passive: true });
+    window.visualViewport?.addEventListener("resize", trigger, { passive: true });
+    document.fonts?.ready?.then(trigger);
+  },
+
+  queueRecalculate() {
+    if (this.timeoutId) cancelAnimationFrame(this.timeoutId);
+    this.timeoutId = requestAnimationFrame(() => {
+      this.recalculate();
+    });
+  },
+
+  recalculate() {
+    setupAppHeight();
+    const activeScene = sceneManager.currentScene;
+    const mod = sceneModules[activeScene];
+    if (mod?.recalculateGeometry) {
+      mod.recalculateGeometry();
     }
   }
 };
@@ -259,7 +297,6 @@ const sceneManager = {
     const container = $("#chapterPips");
     if (!container) return;
     container.innerHTML = "";
-    // Chapters 1 to 8 (boot is 0)
     for (let i = 1; i <= 8; i++) {
       const pip = document.createElement("i");
       pip.dataset.pipIndex = String(i);
@@ -329,6 +366,7 @@ const sceneManager = {
         if (nextEl) {
           nextEl.classList.add("is-active");
           nextEl.setAttribute("aria-hidden", "false");
+          nextEl.scrollTop = 0; // Scene-local overflow reset
         }
 
         this.currentScene = nextScene;
@@ -336,6 +374,7 @@ const sceneManager = {
 
         const nextModule = sceneModules[nextScene];
         if (nextModule?.enter) nextModule.enter();
+        if (nextModule?.recalculateGeometry) nextModule.recalculateGeometry();
         hintController.attach(nextEl);
 
         window.setTimeout(() => {
@@ -352,12 +391,14 @@ const sceneManager = {
       if (nextEl) {
         nextEl.classList.add("is-active");
         nextEl.setAttribute("aria-hidden", "false");
+        nextEl.scrollTop = 0;
       }
       this.currentScene = nextScene;
       this.updateChrome(nextScene);
 
       const nextModule = sceneModules[nextScene];
       if (nextModule?.enter) nextModule.enter();
+      if (nextModule?.recalculateGeometry) nextModule.recalculateGeometry();
       hintController.attach(nextEl);
       this.isTransitioning = false;
     }
@@ -449,10 +490,11 @@ const bootScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 1: HERO (ATTRACT)
+   SCENE MODULE 1: HERO (ATTRACT) â€” MEASURED CENTER COORDINATES
    -------------------------------------------------------------------------- */
 const heroScene = {
   handle: null,
+  target: null,
   track: null,
   distanceEl: null,
   beamEl: null,
@@ -465,6 +507,7 @@ const heroScene = {
 
   init() {
     this.handle = $("#heroSignalHandle");
+    this.target = $("#heroSignalTarget");
     this.track = $("#heroSignalTrack");
     this.distanceEl = $("#heroSignalDistance");
     this.beamEl = $("#heroSignalBeam");
@@ -492,6 +535,21 @@ const heroScene = {
     }
   },
 
+  recalculateGeometry() {
+    if (!this.track || !this.handle || !this.target) return;
+    const trackRect = this.track.getBoundingClientRect();
+    const handleRect = this.handle.getBoundingClientRect();
+    const targetRect = this.target.getBoundingClientRect();
+
+    // Actual travel distance between start handle and target node centers
+    this.maxDrag = Math.max(80, (targetRect.left + targetRect.width / 2) - (trackRect.left + 28));
+    if (this.completed) {
+      this.setDrag(this.maxDrag);
+    } else {
+      this.setDrag(this.dragX);
+    }
+  },
+
   onPointerDown(e) {
     if (this.completed) return;
     this.isDragging = true;
@@ -503,14 +561,12 @@ const heroScene = {
   onPointerMove(e) {
     if (!this.isDragging || this.completed || !this.track) return;
     const rect = this.track.getBoundingClientRect();
-    const x = e.clientX - rect.left - 28;
+    const x = e.clientX - rect.left - 26;
     this.setDrag(x);
   },
 
   setDrag(val) {
     if (!this.track) return;
-    const trackWidth = this.track.clientWidth - 64;
-    this.maxDrag = Math.max(100, trackWidth);
     this.dragX = clamp(val, 0, this.maxDrag);
 
     const ratio = (this.maxDrag - this.dragX) / this.maxDrag;
@@ -524,20 +580,20 @@ const heroScene = {
     }
 
     if (this.curvePath) {
-      const midX = 31 + this.dragX / 2;
-      const heightOffset = 31 - Math.sin((this.dragX / this.maxDrag) * Math.PI) * 18;
-      this.curvePath.setAttribute("d", `M 31,31 Q ${midX},${heightOffset} ${31 + this.dragX},31`);
+      const midX = 28 + this.dragX / 2;
+      const heightOffset = 31 - Math.sin((this.dragX / this.maxDrag) * Math.PI) * 16;
+      this.curvePath.setAttribute("d", `M 28,31 Q ${midX},${heightOffset} ${28 + this.dragX},31`);
     }
 
     if (this.fieldEl) {
-      if (ratio <= 0.25) {
+      if (ratio <= 0.22) {
         this.fieldEl.classList.add("is-captured");
       } else {
         this.fieldEl.classList.remove("is-captured");
       }
     }
 
-    if (this.dragX >= this.maxDrag * 0.94) {
+    if (this.dragX >= this.maxDrag * 0.93) {
       this.complete();
     }
   },
@@ -565,7 +621,9 @@ const heroScene = {
     }, 850);
   },
 
-  enter() {},
+  enter() {
+    this.recalculateGeometry();
+  },
   exit() {
     this.isDragging = false;
   },
@@ -584,16 +642,18 @@ const heroScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 2: CONNECTION (TUNE)
+   SCENE MODULE 2: CONNECTION (TUNE) â€” CONGRUENT POLAR ARC & ROTATION
    -------------------------------------------------------------------------- */
 const connectionScene = {
   dial: null,
   needle: null,
+  targetArc: null,
   syncValEl: null,
   syncMsgEl: null,
   freqEl: null,
   angle: 0,
   targetAngle: 135,
+  tolerance: 18,
   isTuning: false,
   lockTimer: null,
   completed: false,
@@ -601,9 +661,12 @@ const connectionScene = {
   init() {
     this.dial = $("#connectionDial");
     this.needle = $("#connectionNeedle");
+    this.targetArc = $("#connectionTargetArc");
     this.syncValEl = $("#syncValue");
     this.syncMsgEl = $("#syncMessage");
     this.freqEl = $("#connectionFrequency");
+
+    this.drawTargetArc();
 
     if (this.dial) {
       this.dial.addEventListener("pointerdown", (e) => this.onStart(e));
@@ -629,6 +692,29 @@ const connectionScene = {
         }
       });
     }
+  },
+
+  drawTargetArc() {
+    if (!this.targetArc) return;
+    const cx = 100;
+    const cy = 100;
+    const r = 70;
+    const startDeg = this.targetAngle - this.tolerance;
+    const endDeg = this.targetAngle + this.tolerance;
+
+    const startRad = (startDeg - 90) * (Math.PI / 180);
+    const endRad = (endDeg - 90) * (Math.PI / 180);
+
+    const x1 = cx + r * Math.cos(startRad);
+    const y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad);
+    const y2 = cy + r * Math.sin(endRad);
+
+    this.targetArc.setAttribute("d", `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)}`);
+  },
+
+  recalculateGeometry() {
+    this.drawTargetArc();
   },
 
   onStart(e) {
@@ -669,7 +755,7 @@ const connectionScene = {
       syncPanel.style.setProperty("--signal-stability", String(stability));
     }
 
-    if (stability >= 94) {
+    if (error <= this.tolerance) {
       if (this.dial) this.dial.classList.add("is-matched");
       if (!this.lockTimer) {
         this.lockTimer = window.setTimeout(() => this.complete(), 480);
@@ -705,7 +791,9 @@ const connectionScene = {
     }, 850);
   },
 
-  enter() {},
+  enter() {
+    this.recalculateGeometry();
+  },
   exit() {
     this.isTuning = false;
     if (this.lockTimer) clearTimeout(this.lockTimer);
@@ -721,10 +809,11 @@ const connectionScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 3: RECORDS (SEARCH)
+   SCENE MODULE 3: RECORDS (SEARCH) â€” NORMALIZED COORDINATE PLANE
    -------------------------------------------------------------------------- */
 const recordsScene = {
   radar: null,
+  plane: null,
   lens: null,
   echoes: [],
   recovered: new Set(),
@@ -732,9 +821,17 @@ const recordsScene = {
   lensX: 50,
   lensY: 50,
   isScanning: false,
+  coords: [
+    { x: 25, y: 35 },
+    { x: 45, y: 70 },
+    { x: 60, y: 30 },
+    { x: 75, y: 65 },
+    { x: 85, y: 40 }
+  ],
 
   init() {
     this.radar = $("#recordRadar");
+    this.plane = $("#radarPlane");
     this.lens = $("#recordLens");
     this.echoes = $$(".radar__echo");
 
@@ -762,18 +859,15 @@ const recordsScene = {
   },
 
   positionEchoes() {
-    const coords = [
-      { x: 25, y: 35 },
-      { x: 45, y: 70 },
-      { x: 60, y: 30 },
-      { x: 75, y: 65 },
-      { x: 85, y: 40 }
-    ];
     this.echoes.forEach((echo, idx) => {
-      const pt = coords[idx] || { x: 50, y: 50 };
+      const pt = this.coords[idx] || { x: 50, y: 50 };
       echo.style.left = `${pt.x}%`;
       echo.style.top = `${pt.y}%`;
     });
+  },
+
+  recalculateGeometry() {
+    this.positionEchoes();
   },
 
   onPointerDown(e) {
@@ -785,8 +879,8 @@ const recordsScene = {
   onPointerMove(e) {
     if (!this.isScanning || !this.radar) return;
     const rect = this.radar.getBoundingClientRect();
-    this.lensX = clamp(((e.clientX - rect.left) / rect.width) * 100, 5, 95);
-    this.lensY = clamp(((e.clientY - rect.top) / rect.height) * 100, 5, 95);
+    this.lensX = clamp(((e.clientX - rect.left) / rect.width) * 100, 8, 92);
+    this.lensY = clamp(((e.clientY - rect.top) / rect.height) * 100, 8, 92);
 
     if (this.lens) {
       this.lens.style.left = `${this.lensX}%`;
@@ -797,20 +891,12 @@ const recordsScene = {
   },
 
   checkProximity() {
-    const coords = [
-      { x: 25, y: 35 },
-      { x: 45, y: 70 },
-      { x: 60, y: 30 },
-      { x: 75, y: 65 },
-      { x: 85, y: 40 }
-    ];
-
-    coords.forEach((pt, idx) => {
+    this.coords.forEach((pt, idx) => {
       const dist = Math.hypot(this.lensX - pt.x, this.lensY - pt.y);
       const echo = this.echoes[idx];
       if (!echo) return;
 
-      if (dist <= 14) {
+      if (dist <= 13) {
         echo.classList.add("is-found");
         if (!this.recovered.has(idx)) {
           this.recoverEcho(idx);
@@ -865,6 +951,7 @@ const recordsScene = {
 
   enter() {
     this.selectEcho(0);
+    this.recalculateGeometry();
   },
   exit() {
     this.isScanning = false;
@@ -882,19 +969,22 @@ const recordsScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 4: TIMELINE (TRAVEL)
+   SCENE MODULE 4: TIMELINE (TRAVEL) â€” REAL CHECKPOINT MEASUREMENTS
    -------------------------------------------------------------------------- */
 const timelineScene = {
   scrollRegion: null,
   checkpoints: [],
+  basePath: null,
   progressPath: null,
   pulseDot: null,
   continueBtn: null,
   currentMilestone: 0,
+  checkpointCenters: [],
 
   init() {
     this.scrollRegion = $("#timelineScrollRegion");
     this.checkpoints = $$(".timeline-checkpoint");
+    this.basePath = $("#timelineBasePath");
     this.progressPath = $("#timelineProgressPath");
     this.pulseDot = $("#timelinePulse");
     this.continueBtn = $("#timelineFinalContinue");
@@ -919,6 +1009,33 @@ const timelineScene = {
     }
   },
 
+  recalculateGeometry() {
+    if (!this.scrollRegion || this.checkpoints.length === 0) return;
+    const regionRect = this.scrollRegion.getBoundingClientRect();
+    const scrollTop = this.scrollRegion.scrollTop;
+
+    this.checkpointCenters = this.checkpoints.map(cp => {
+      const rect = cp.getBoundingClientRect();
+      return (rect.top - regionRect.top + scrollTop) + (rect.height / 2);
+    });
+
+    const firstY = this.checkpointCenters[0] || 20;
+    const lastY = this.checkpointCenters[this.checkpointCenters.length - 1] || 580;
+
+    const svg = $("#timelineJourneyPath");
+    if (svg) {
+      svg.setAttribute("viewBox", `0 0 20 ${Math.max(600, lastY + 40)}`);
+    }
+    if (this.basePath) {
+      this.basePath.setAttribute("d", `M 10,${firstY.toFixed(1)} L 10,${lastY.toFixed(1)}`);
+    }
+    if (this.progressPath) {
+      this.progressPath.setAttribute("d", `M 10,${firstY.toFixed(1)} L 10,${lastY.toFixed(1)}`);
+    }
+
+    this.onScroll();
+  },
+
   onScroll() {
     if (!this.scrollRegion) return;
     hintController.notifyProgress();
@@ -934,10 +1051,13 @@ const timelineScene = {
       this.progressPath.style.strokeDashoffset = `${1000 - (ratio * 1000)}`;
     }
     if (this.pulseDot) {
-      this.pulseDot.setAttribute("cy", String(20 + ratio * 560));
+      const firstY = this.checkpointCenters[0] || 20;
+      const lastY = this.checkpointCenters[this.checkpointCenters.length - 1] || 580;
+      const cy = firstY + ratio * (lastY - firstY);
+      this.pulseDot.setAttribute("cy", String(cy.toFixed(1)));
     }
 
-    if (ratio >= 0.92 && this.continueBtn) {
+    if (ratio >= 0.88 && this.continueBtn) {
       this.continueBtn.hidden = false;
     }
   },
@@ -967,6 +1087,7 @@ const timelineScene = {
 
   enter() {
     this.setMilestone(0);
+    this.recalculateGeometry();
   },
   exit() {},
   reset() {
@@ -977,7 +1098,7 @@ const timelineScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 5: BARRIER (RESONATE)
+   SCENE MODULE 5: BARRIER (RESONATE) â€” SHARED RING PHASE & ARC WINDOW
    -------------------------------------------------------------------------- */
 const barrierScene = {
   button: null,
@@ -985,11 +1106,12 @@ const barrierScene = {
   numberEl: null,
   barEl: null,
   feedbackEl: null,
-  pulseEl: null,
+  pulseDot: null,
+  windowArc: null,
   pulsePhase: 0,
   loopTimer: null,
-  fieldVal: 100,
-  windowTolerance: 0.18,
+  windowTarget: 0.5,
+  windowTolerance: 0.14,
   completed: false,
 
   init() {
@@ -998,7 +1120,10 @@ const barrierScene = {
     this.numberEl = $("#barrierNumber");
     this.barEl = $("#barrierBar");
     this.feedbackEl = $("#barrierFeedback");
-    this.pulseEl = $("#barrierPulse");
+    this.pulseDot = $("#barrierPulseDot");
+    this.windowArc = $("#barrierWindowArc");
+
+    this.drawWindowArc();
 
     if (this.button) {
       this.button.addEventListener("click", () => this.releasePulse());
@@ -1014,12 +1139,41 @@ const barrierScene = {
     });
   },
 
+  drawWindowArc() {
+    if (!this.windowArc) return;
+    const cx = 100;
+    const cy = 100;
+    const r = 70;
+    const startPhase = this.windowTarget - this.windowTolerance;
+    const endPhase = this.windowTarget + this.windowTolerance;
+
+    const startRad = (startPhase * 2 * Math.PI) - Math.PI / 2;
+    const endRad = (endPhase * 2 * Math.PI) - Math.PI / 2;
+
+    const x1 = cx + r * Math.cos(startRad);
+    const y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad);
+    const y2 = cy + r * Math.sin(endRad);
+
+    this.windowArc.setAttribute("d", `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)}`);
+  },
+
+  recalculateGeometry() {
+    this.drawWindowArc();
+  },
+
   startLoop() {
     clearInterval(this.loopTimer);
     this.loopTimer = setInterval(() => {
-      this.pulsePhase = (this.pulsePhase + 0.02) % 1;
-      if (this.pulseEl) {
-        this.pulseEl.classList.add("is-traveling");
+      this.pulsePhase = (this.pulsePhase + 0.016) % 1;
+
+      // Move pulse along the track
+      if (this.pulseDot) {
+        const rad = (this.pulsePhase * 2 * Math.PI) - Math.PI / 2;
+        const cx = 100 + 70 * Math.cos(rad);
+        const cy = 100 + 70 * Math.sin(rad);
+        this.pulseDot.setAttribute("cx", cx.toFixed(2));
+        this.pulseDot.setAttribute("cy", cy.toFixed(2));
       }
     }, 25);
   },
@@ -1029,18 +1183,18 @@ const barrierScene = {
     hintController.notifyProgress();
     soundSystem.playInterface();
 
-    const target = 0.5;
-    const diff = Math.abs(this.pulsePhase - target);
+    const diff = Math.abs(this.pulsePhase - this.windowTarget);
 
     if (diff <= this.windowTolerance) {
       this.complete();
     } else {
-      if (this.pulsePhase < target) {
+      if (this.pulsePhase < this.windowTarget) {
         if (this.feedbackEl) this.feedbackEl.textContent = "EARLY PULSE / ADJUST TIMING";
       } else {
-        if (this.feedbackEl) this.feedbackEl.textContent = "LATE PULSE / RELEASE WHEN WINDOW GLOWS";
+        if (this.feedbackEl) this.feedbackEl.textContent = "LATE PULSE / RELEASE WHEN PULSE ENTERS WINDOW";
       }
-      this.windowTolerance = Math.min(0.35, this.windowTolerance + 0.03);
+      this.windowTolerance = Math.min(0.28, this.windowTolerance + 0.02);
+      this.drawWindowArc();
     }
   },
 
@@ -1071,6 +1225,7 @@ const barrierScene = {
   },
 
   enter() {
+    this.recalculateGeometry();
     this.startLoop();
   },
   exit() {
@@ -1079,7 +1234,8 @@ const barrierScene = {
   reset() {
     this.completed = false;
     this.pulsePhase = 0;
-    this.windowTolerance = 0.18;
+    this.windowTolerance = 0.14;
+    this.drawWindowArc();
     if (this.visual) this.visual.classList.remove("is-open");
     if (this.numberEl) this.numberEl.textContent = "100";
     if (this.barEl) this.barEl.style.width = "100%";
@@ -1088,11 +1244,12 @@ const barrierScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 6: LETTER (RECONSTRUCT)
+   SCENE MODULE 6: LETTER (RECONSTRUCT) â€” REAL COLLISION & PROGRESSIVE UNLOCK
    -------------------------------------------------------------------------- */
 const letterScene = {
   field: null,
   orb: null,
+  zone: null,
   fragments: [],
   statusEl: null,
   counterEl: null,
@@ -1102,10 +1259,17 @@ const letterScene = {
   orbY: 50,
   placedCount: 0,
   isDragging: false,
+  attractedFragment: null,
+  fragCoords: [
+    { x: 15, y: 25 },
+    { x: 45, y: 55 },
+    { x: 75, y: 25 }
+  ],
 
   init() {
     this.field = $("#letterReconstructField");
     this.orb = $("#letterOrb");
+    this.zone = $("#letterReconstructZone");
     this.fragments = $$(".reconstruct__fragment");
     this.statusEl = $("#letterReconstructStatus");
     this.counterEl = $("#letterCounter");
@@ -1134,8 +1298,8 @@ const letterScene = {
   onPointerMove(e) {
     if (!this.isDragging || !this.field) return;
     const rect = this.field.getBoundingClientRect();
-    this.orbX = clamp(((e.clientX - rect.left) / rect.width) * 100, 5, 95);
-    this.orbY = clamp(((e.clientY - rect.top) / rect.height) * 100, 5, 95);
+    this.orbX = clamp(((e.clientX - rect.left) / rect.width) * 100, 6, 94);
+    this.orbY = clamp(((e.clientY - rect.top) / rect.height) * 100, 10, 90);
 
     if (this.orb) {
       this.orb.style.left = `${this.orbX}%`;
@@ -1146,24 +1310,22 @@ const letterScene = {
   },
 
   checkFragments() {
-    const coords = [
-      { x: 15, y: 25 },
-      { x: 55, y: 55 },
-      { x: 80, y: 20 }
-    ];
-
-    coords.forEach((pt, idx) => {
+    this.fragCoords.forEach((pt, idx) => {
       const frag = this.fragments[idx];
       if (!frag || frag.classList.contains("is-placed")) return;
 
       const dist = Math.hypot(this.orbX - pt.x, this.orbY - pt.y);
-      if (dist <= 18) {
+      if (dist <= 16) {
         frag.classList.add("is-attracted");
-        if (this.orbX >= 75) {
-          this.placeFragment(idx);
-        }
+        this.attractedFragment = idx;
       }
     });
+
+    // Check if attracted fragment is brought to the Target Zone (right side >= 72%)
+    if (this.attractedFragment !== null && this.orbX >= 72) {
+      this.placeFragment(this.attractedFragment);
+      this.attractedFragment = null;
+    }
   },
 
   placeFragment(idx) {
@@ -1205,26 +1367,29 @@ const letterScene = {
   },
 
   enter() {
-    if (this.copyEl) this.copyEl.innerHTML = "";
-    this.placedCount = 0;
-    this.placeFragment(0);
+    if (this.copyEl && this.copyEl.children.length === 0) {
+      this.showFragmentText(0);
+      this.placeFragment(0);
+    }
   },
   exit() {
     this.isDragging = false;
   },
   reset() {
     this.placedCount = 0;
+    this.attractedFragment = null;
     this.fragments.forEach(f => f.classList.remove("is-attracted", "is-placed"));
     if (this.sealBtn) {
       this.sealBtn.disabled = true;
       this.sealBtn.hidden = true;
     }
     if (this.copyEl) this.copyEl.innerHTML = "";
+    if (this.counterEl) this.counterEl.textContent = "MESSAGE FRAGMENT 00 / 03";
   }
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 7: RESPONSE (CHOOSE)
+   SCENE MODULE 7: RESPONSE (CHOOSE) â€” SAFE BOUNDED DRIFT
    -------------------------------------------------------------------------- */
 const responseScene = {
   options: null,
@@ -1249,7 +1414,9 @@ const responseScene = {
         if (this.driftCount < 2) {
           this.driftCount++;
           this.noBtn.classList.add("is-drifting");
-          this.noBtn.style.top = `${this.driftCount * 36}px`;
+          // Safely drift without leaving container or overlapping Yes button
+          const offsetY = this.driftCount * 28;
+          this.noBtn.style.transform = `translateY(${offsetY}px)`;
           if (this.driftCount === 2) {
             this.noBtn.classList.add("is-catchable");
           }
@@ -1263,9 +1430,15 @@ const responseScene = {
     if (this.changeBtn) {
       this.changeBtn.addEventListener("click", () => {
         this.changeBtn.hidden = true;
-        $$(".response-options button").forEach(b => b.classList.remove("is-selected"));
+        $$(".response-options--binary button").forEach(b => b.classList.remove("is-selected"));
         if (this.feedbackEl) this.feedbackEl.textContent = "RESPONSE CHANNEL / WAITING";
       });
+    }
+  },
+
+  recalculateGeometry() {
+    if (this.noBtn && this.driftCount === 0) {
+      this.noBtn.style.transform = "";
     }
   },
 
@@ -1274,7 +1447,7 @@ const responseScene = {
     if (this.feedbackEl) this.feedbackEl.textContent = msg;
     if (this.changeBtn) this.changeBtn.hidden = false;
 
-    $$(".response-options button").forEach(b => {
+    $$(".response-options--binary button").forEach(b => {
       b.classList.toggle("is-selected", b.dataset.response === choice);
     });
 
@@ -1290,19 +1463,21 @@ const responseScene = {
     }, 1200);
   },
 
-  enter() {},
+  enter() {
+    this.recalculateGeometry();
+  },
   exit() {},
   reset() {
     this.driftCount = 0;
     if (this.noBtn) {
-      this.noBtn.style.top = "";
+      this.noBtn.style.transform = "";
       this.noBtn.classList.remove("is-drifting", "is-catchable");
     }
   }
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 8: REPLY (SEND / WHATSAPP)
+   SCENE MODULE 8: REPLY (SEND / WHATSAPP) â€” VIRTUAL KEYBOARD TOLERANCE
    -------------------------------------------------------------------------- */
 const replyScene = {
   textarea: null,
@@ -1316,6 +1491,11 @@ const replyScene = {
 
     if (this.textarea && this.whatsappBtn) {
       this.textarea.addEventListener("input", () => this.updateLink());
+      this.textarea.addEventListener("focus", () => {
+        window.setTimeout(() => {
+          this.textarea?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 200);
+      });
     }
 
     if (this.replayBtn) {
@@ -1364,14 +1544,8 @@ const sceneModules = {
    RESPONSIVE VIEWPORT & CANVAS BACKGROUND
    -------------------------------------------------------------------------- */
 function setupAppHeight() {
-  const update = () => {
-    const height = window.visualViewport?.height || window.innerHeight;
-    document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
-  };
-  update();
-  window.addEventListener("resize", update, { passive: true });
-  window.addEventListener("orientationchange", update, { passive: true });
-  window.visualViewport?.addEventListener("resize", update, { passive: true });
+  const height = window.visualViewport?.height || window.innerHeight;
+  document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
 }
 
 function setupAmbientCanvas() {
@@ -1387,13 +1561,13 @@ function setupAmbientCanvas() {
   const resize = () => {
     width = canvas.width = window.innerWidth;
     height = canvas.height = window.innerHeight;
-    particles = Array.from({ length: 28 }, () => ({
+    particles = Array.from({ length: 26 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
       size: Math.random() * 2 + 1,
-      alpha: Math.random() * 0.4 + 0.1
+      alpha: Math.random() * 0.35 + 0.1
     }));
   };
 
@@ -1429,6 +1603,7 @@ document.addEventListener("DOMContentLoaded", () => {
   inputModeTracker.init();
   soundSystem.init();
   sceneManager.init();
+  geometryManager.init();
 
   Object.values(sceneModules).forEach(mod => {
     if (mod.init) mod.init();

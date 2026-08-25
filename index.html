@@ -46,7 +46,7 @@
   </header>
 
   <main class="scene-viewport" id="sceneViewport">
-    <!-- Scene 0: Boot -->
+    <!-- Scene 0: Boot (CRITICAL FINGERPRINT SCANNER PRESERVED) -->
     <section class="scene scene--boot is-active" data-scene="boot" aria-label="System introduction" aria-hidden="false">
       <div class="boot-card">
         <div class="boot-card__meta"><span>REI.SYS</span><span>PERSONAL CHANNEL 00</span></div>
@@ -178,40 +178,42 @@
           <div class="record-card__scan" id="recordScan" aria-hidden="true"></div>
         </article>
         <div id="recordRadar">
-          <svg id="recordRadarField" viewBox="0 0 300 200" aria-hidden="true">
-            <defs>
-              <radialGradient id="radarSweepGrad">
-                <stop offset="0%" stop-color="rgba(0,159,227,0.35)"/>
-                <stop offset="100%" stop-color="transparent"/>
-              </radialGradient>
-            </defs>
-            <circle cx="150" cy="100" r="80" class="radar__grid" fill="none"/>
-            <circle cx="150" cy="100" r="50" class="radar__grid" fill="none"/>
-            <circle cx="150" cy="100" r="20" class="radar__grid" fill="none"/>
-            <line x1="150" y1="10" x2="150" y2="190" class="radar__grid"/>
-            <line x1="60" y1="100" x2="240" y2="100" class="radar__grid"/>
-            <polygon id="recordRadarSweep" points="150,100 230,60 230,140"/>
-            <path id="recordConstellation" d="M 70,60 L 120,140 L 150,70 L 200,130 L 240,80"/>
-          </svg>
-          <div id="recordRadarEdges" aria-hidden="true">
-            <span class="radar__edge radar__edge--n">N</span>
-            <span class="radar__edge radar__edge--s">S</span>
-            <span class="radar__edge radar__edge--e">E</span>
-            <span class="radar__edge radar__edge--w">W</span>
+          <div class="radar-plane" id="radarPlane">
+            <svg id="recordRadarField" viewBox="0 0 300 200" aria-hidden="true" preserveAspectRatio="none">
+              <defs>
+                <radialGradient id="radarSweepGrad">
+                  <stop offset="0%" stop-color="rgba(0,159,227,0.35)"/>
+                  <stop offset="100%" stop-color="transparent"/>
+                </radialGradient>
+              </defs>
+              <ellipse cx="150" cy="100" rx="120" ry="80" class="radar__grid" fill="none"/>
+              <ellipse cx="150" cy="100" rx="80" ry="50" class="radar__grid" fill="none"/>
+              <ellipse cx="150" cy="100" rx="40" ry="25" class="radar__grid" fill="none"/>
+              <line x1="150" y1="10" x2="150" y2="190" class="radar__grid"/>
+              <line x1="20" y1="100" x2="280" y2="100" class="radar__grid"/>
+              <polygon id="recordRadarSweep" points="150,100 270,60 270,140"/>
+              <path id="recordConstellation" d="M 75,70 L 135,140 L 180,60 L 225,130 L 255,80"/>
+            </svg>
+            <div id="recordRadarEdges" aria-hidden="true">
+              <span class="radar__edge radar__edge--n">N</span>
+              <span class="radar__edge radar__edge--s">S</span>
+              <span class="radar__edge radar__edge--e">E</span>
+              <span class="radar__edge radar__edge--w">W</span>
+            </div>
+            <div id="recordEchoes">
+              <button class="radar__echo" data-record-index="0" type="button" aria-label="Inspect memory echo 1">01</button>
+              <button class="radar__echo" data-record-index="1" type="button" aria-label="Inspect memory echo 2">02</button>
+              <button class="radar__echo" data-record-index="2" type="button" aria-label="Inspect memory echo 3">03</button>
+              <button class="radar__echo" data-record-index="3" type="button" aria-label="Inspect memory echo 4">04</button>
+              <button class="radar__echo" data-record-index="4" type="button" aria-label="Inspect memory echo 5">05</button>
+            </div>
+            <button id="recordLens" type="button" aria-label="Optical radar scanner lens">
+              <span id="recordPing" aria-hidden="true"></span>
+            </button>
           </div>
-          <div id="recordEchoes">
-            <button class="radar__echo" data-record-index="0" type="button" aria-label="Inspect memory echo 1">01</button>
-            <button class="radar__echo" data-record-index="1" type="button" aria-label="Inspect memory echo 2">02</button>
-            <button class="radar__echo" data-record-index="2" type="button" aria-label="Inspect memory echo 3">03</button>
-            <button class="radar__echo" data-record-index="3" type="button" aria-label="Inspect memory echo 4">04</button>
-            <button class="radar__echo" data-record-index="4" type="button" aria-label="Inspect memory echo 5">05</button>
-          </div>
-          <button id="recordLens" type="button" aria-label="Optical radar scanner lens">
-            <span id="recordPing" aria-hidden="true"></span>
-          </button>
         </div>
         <div class="record-archive-bar">
-          <span id="recordArchiveStatus">ARCHIVE PROGRESS / <b id="recordArchiveCount">1 / 5</b></span>
+          <span id="recordArchiveStatus">ARCHIVE PROGRESS / <b id="recordArchiveCount">0 / 5</b></span>
           <button class="primary-button" id="recordArchiveContinue" type="button" hidden>CONTINUE TO TIMELINE &rarr;</button>
         </div>
       </div>
@@ -259,7 +261,7 @@
               <button type="button"><strong>MILESTONE 05</strong><small>TRANSMISSION</small></button>
             </li>
           </ol>
-          <div style="text-align: center; margin-top: 24px;">
+          <div class="timeline-continue-wrapper">
             <button class="primary-button" id="timelineFinalContinue" type="button" hidden>PROCEED TO BARRIER &rarr;</button>
           </div>
         </div>
@@ -275,6 +277,11 @@
           <i class="resonance__ring" data-ring-index="1"></i>
           <i class="resonance__ring" data-ring-index="2"></i>
         </div>
+        <svg id="barrierSvg" viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="70" class="barrier-track" fill="none" stroke="rgba(255,51,95,0.25)" stroke-width="2"/>
+          <path id="barrierWindowArc" d="" fill="none" stroke="var(--green)" stroke-width="6" stroke-linecap="round"/>
+          <circle id="barrierPulseDot" cx="100" cy="30" r="6" fill="var(--blue)"/>
+        </svg>
         <div id="barrierWindow"></div>
         <div id="barrierPulse"></div>
         <div id="barrierEmitter"></div>
@@ -313,7 +320,7 @@
           <button class="interaction-guide__show" id="letterGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
         </div>
         <div class="letter-fragment">
-          <span id="letterCounter">MESSAGE FRAGMENT 01 / 03</span>
+          <span id="letterCounter">MESSAGE FRAGMENT 00 / 03</span>
           <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
         </div>
         <div class="letter-signature" id="letterSignature">&mdash; <span data-sender>Ayyash</span></div>
