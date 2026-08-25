@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <!-- Ayyash to Maureen // private emotional signal -->
 <html lang="en">
 <head>
@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#c9f5ff">
   <meta name="description" content="A personal love signal from Ayyash to Maureen.">
-  <title>Ayyash → Maureen // Private Signal</title>
+  <title>Ayyash &rarr; Maureen // Private Signal</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
-<body data-active-scene="boot">
+<body data-active-scene="boot" data-input-mode="pointer">
   <canvas id="ambientCanvas" aria-hidden="true"></canvas>
   <div class="screen-grid" aria-hidden="true"></div>
   <div class="scanline" aria-hidden="true"></div>
@@ -19,6 +19,13 @@
   <div class="chapter-transition" id="chapterTransition" aria-hidden="true">
     <div class="chapter-transition__rings" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="chapter-transition__pulse" aria-hidden="true"></div>
+    <svg id="transitionBridge" aria-hidden="true" viewBox="0 0 400 400">
+      <path id="bridgePath" d="M 50,200 Q 200,50 350,200" fill="none" stroke="rgba(0,159,227,0.4)" stroke-width="2"/>
+      <path id="bridgeWaveform" d="M 50,200 C 100,160 150,240 200,200 C 250,160 300,240 350,200" fill="none" stroke="rgba(255,51,95,0.4)" stroke-width="2"/>
+      <circle id="bridgeRadar" cx="200" cy="200" r="80" fill="none" stroke="rgba(79,210,255,0.4)" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <g id="bridgeParticles"></g>
+      <g id="bridgeGlyphs"></g>
+    </svg>
     <div class="chapter-transition__copy">
       <span id="transitionNumber">00</span>
       <strong id="transitionText">SIGNAL RECOGNIZED</strong>
@@ -39,6 +46,7 @@
   </header>
 
   <main class="scene-viewport" id="sceneViewport">
+    <!-- Scene 0: Boot -->
     <section class="scene scene--boot is-active" data-scene="boot" aria-label="System introduction" aria-hidden="false">
       <div class="boot-card">
         <div class="boot-card__meta"><span>REI.SYS</span><span>PERSONAL CHANNEL 00</span></div>
@@ -69,6 +77,7 @@
       </div>
     </section>
 
+    <!-- Scene 1: Hero (ATTRACT) -->
     <section class="scene scene--hero" data-scene="hero" data-chapter="01" aria-label="Signal detected" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">01</span>
       <div class="hero-copy">
@@ -83,8 +92,18 @@
         <div class="hero-art__orbit" aria-hidden="true"></div>
       </div>
       <div class="signal-align" id="heroSignalAlign">
-        <div class="interaction-copy"><strong>BRING THE TWO SIGNALS TOGETHER</strong><small>DRAG THE BLUE SIGNAL TOWARD THE PINK SIGNAL</small></div>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="DRAG THE BLUE SIGNAL TOWARD THE PINK TARGET" data-touch-instruction="DRAG YOUR SIGNAL TOWARD MAUREEN'S SIGNAL" data-keyboard-instruction="USE ARROW KEYS TO MOVE SIGNAL, ENTER TO CONFIRM">
+          <span class="interaction-guide__text" id="heroGuideText" aria-live="polite">DRAG THE BLUE SIGNAL TOWARD THE PINK TARGET</span>
+          <span class="interaction-guide__demo" id="heroGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
+          <button class="interaction-guide__show" id="heroGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
+        </div>
         <div class="signal-align__track" id="heroSignalTrack">
+          <svg id="heroSignalCurve" aria-hidden="true">
+            <path id="heroSignalCurvePath" d="M 31,31 Q 150,10 270,31"/>
+          </svg>
+          <div id="heroSignalParticles" aria-hidden="true"></div>
+          <div id="heroSignalField" aria-hidden="true"></div>
+          <div id="heroSignalBurst" aria-hidden="true"></div>
           <i class="signal-align__beam" id="heroSignalBeam" aria-hidden="true"></i>
           <button class="signal-align__node signal-align__node--sender" id="heroSignalHandle" type="button" aria-label="Drag Ayyash's signal toward Maureen's signal"><span>A</span><small data-sender>Ayyash</small></button>
           <div class="signal-align__node signal-align__node--receiver" id="heroSignalTarget" aria-hidden="true"><span>M</span><small data-recipient>Maureen</small></div>
@@ -93,6 +112,7 @@
       </div>
     </section>
 
+    <!-- Scene 2: Connection (TUNE) -->
     <section class="scene scene--connection" data-scene="connection" data-chapter="02" aria-label="Connection" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">02</span>
       <div class="section-heading">
@@ -100,19 +120,43 @@
         <h2>Two signals.<br><em>One act of courage.</em></h2>
       </div>
       <div class="sync-panel" id="syncPanel">
-        <div class="sync-panel__header"><span>SYNCHRONIZATION TEST</span><span id="syncStatus">CONNECTION STANDBY</span></div>
-        <div class="sync-stage">
-          <div class="signal-node"><span>A</span><small data-sender>Ayyash</small></div>
-          <div class="sync-path" aria-hidden="true"><i id="syncLine"></i><b></b></div>
-          <div class="field-gate" aria-hidden="true"><i></i><i></i><i></i></div>
-          <div class="signal-node"><span>M</span><small data-recipient>Maureen</small></div>
+        <div class="sync-panel__header">
+          <span>ROTARY FREQUENCY TUNER</span>
+          <span id="syncStatus">STANDBY / SEARCHING</span>
         </div>
-        <div class="sync-readout"><strong><span id="syncValue">00</span>%</strong><small>EMOTIONAL LINK</small></div>
-        <p class="sync-message" id="syncMessage" aria-live="polite">The signal has not been sent yet.</p>
-        <button class="hold-strip" id="syncButton" type="button"><i aria-hidden="true"></i><span>PRESS &amp; HOLD TO CONNECT</span><small>KEEP BOTH SIGNALS IN SYNC</small></button>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="ROTATE THE DIAL TO MATCH FREQUENCIES" data-touch-instruction="SWIPE TO ROTATE THE TUNER DIAL" data-keyboard-instruction="USE ARROW KEYS OR SCROLL TO ROTATE DIAL">
+          <span class="interaction-guide__text" id="connectionGuideText" aria-live="polite">ROTATE THE DIAL TO MATCH FREQUENCIES</span>
+          <span class="interaction-guide__demo" id="connectionGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
+          <button class="interaction-guide__show" id="connectionGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
+        </div>
+        <div class="sync-stage">
+          <div class="tuner-container">
+            <div class="tuner__dial" id="connectionDial" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0" aria-label="Frequency dial tuner" aria-describedby="connectionGuideText">
+              <svg id="connectionTicks" viewBox="0 0 200 200" aria-hidden="true">
+                <g id="connectionTickmarks"></g>
+                <path id="connectionTargetArc" d="M 170,100 A 70,70 0 0,1 150,150"/>
+              </svg>
+              <div id="connectionInterference" aria-hidden="true"></div>
+              <div id="connectionNeedle" aria-hidden="true"></div>
+              <div id="connectionHandle" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="tuner-waveforms" aria-hidden="true">
+            <svg id="connectionWaveBlue" viewBox="0 0 300 60"><path d="M 0,30 Q 75,5 150,30 T 300,30"/></svg>
+            <svg id="connectionWavePink" viewBox="0 0 300 60"><path d="M 0,30 Q 75,55 150,30 T 300,30"/></svg>
+            <svg id="connectionWaveMerged" viewBox="0 0 300 60"><path d="M 0,30 Q 75,30 150,30 T 300,30"/></svg>
+          </div>
+          <div class="sync-frequencies">
+            <span>FREQ / <b id="connectionFrequency">0.00 MHz</b></span>
+            <span>TARGET / <b id="connectionTargetFrequency">142.80 MHz</b></span>
+          </div>
+        </div>
+        <div class="sync-readout"><strong><span id="syncValue">00</span>%</strong><small>SIGNAL STABILITY</small></div>
+        <p class="sync-message" id="syncMessage" aria-live="polite">Rotate the dial to align the two waveforms.</p>
       </div>
     </section>
 
+    <!-- Scene 3: Records (SEARCH) -->
     <section class="scene scene--records" data-scene="records" data-chapter="03" aria-label="Personal records" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">03</span>
       <div class="section-heading section-heading--compact">
@@ -121,6 +165,11 @@
       </div>
       <div class="record-stage">
         <div class="record-stage__counter"><span id="recordCounter">RECORD 01 / 05</span><span id="recordCode">OBS-01</span></div>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="MOVE THE RADAR LENS TO DISCOVER MEMORY ECHOES" data-touch-instruction="DRAG THE SCANNER LENS ACROSS THE RADAR" data-keyboard-instruction="USE ARROW KEYS TO MOVE THE RADAR LENS">
+          <span class="interaction-guide__text" id="recordsGuideText" aria-live="polite">MOVE THE RADAR LENS TO DISCOVER MEMORY ECHOES</span>
+          <span class="interaction-guide__demo" id="recordsGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
+          <button class="interaction-guide__show" id="recordsGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
+        </div>
         <article class="record-card" id="recordCard">
           <span class="record-card__number" id="recordNumber">01</span>
           <p class="record-card__status" id="recordStatus">PERSONAL RECORD READY</p>
@@ -128,17 +177,47 @@
           <p class="record-card__text" id="recordText"></p>
           <div class="record-card__scan" id="recordScan" aria-hidden="true"></div>
         </article>
-        <div class="swipe-console" id="recordConsole">
-          <div class="interaction-copy"><strong id="recordActionLabel">SWIPE TO DECRYPT THIS MEMORY</strong><small>THE SIGNAL WILL MOVE FORWARD AFTER DECRYPTION</small></div>
-          <div class="swipe-console__track" id="recordTrack">
-            <i id="recordTrackFill"></i>
-            <button class="swipe-console__handle" id="recordHandle" type="button" aria-label="Drag to decrypt this memory"><span>◇</span></button>
-            <b aria-hidden="true">MEMORY</b>
+        <div id="recordRadar">
+          <svg id="recordRadarField" viewBox="0 0 300 200" aria-hidden="true">
+            <defs>
+              <radialGradient id="radarSweepGrad">
+                <stop offset="0%" stop-color="rgba(0,159,227,0.35)"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+            </defs>
+            <circle cx="150" cy="100" r="80" class="radar__grid" fill="none"/>
+            <circle cx="150" cy="100" r="50" class="radar__grid" fill="none"/>
+            <circle cx="150" cy="100" r="20" class="radar__grid" fill="none"/>
+            <line x1="150" y1="10" x2="150" y2="190" class="radar__grid"/>
+            <line x1="60" y1="100" x2="240" y2="100" class="radar__grid"/>
+            <polygon id="recordRadarSweep" points="150,100 230,60 230,140"/>
+            <path id="recordConstellation" d="M 70,60 L 120,140 L 150,70 L 200,130 L 240,80"/>
+          </svg>
+          <div id="recordRadarEdges" aria-hidden="true">
+            <span class="radar__edge radar__edge--n">N</span>
+            <span class="radar__edge radar__edge--s">S</span>
+            <span class="radar__edge radar__edge--e">E</span>
+            <span class="radar__edge radar__edge--w">W</span>
           </div>
+          <div id="recordEchoes">
+            <button class="radar__echo" data-record-index="0" type="button" aria-label="Inspect memory echo 1">01</button>
+            <button class="radar__echo" data-record-index="1" type="button" aria-label="Inspect memory echo 2">02</button>
+            <button class="radar__echo" data-record-index="2" type="button" aria-label="Inspect memory echo 3">03</button>
+            <button class="radar__echo" data-record-index="3" type="button" aria-label="Inspect memory echo 4">04</button>
+            <button class="radar__echo" data-record-index="4" type="button" aria-label="Inspect memory echo 5">05</button>
+          </div>
+          <button id="recordLens" type="button" aria-label="Optical radar scanner lens">
+            <span id="recordPing" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="record-archive-bar">
+          <span id="recordArchiveStatus">ARCHIVE PROGRESS / <b id="recordArchiveCount">1 / 5</b></span>
+          <button class="primary-button" id="recordArchiveContinue" type="button" hidden>CONTINUE TO TIMELINE &rarr;</button>
         </div>
       </div>
     </section>
 
+    <!-- Scene 4: Timeline (TRAVEL) -->
     <section class="scene scene--timeline" data-scene="timeline" data-chapter="04" aria-label="Signal history" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">04</span>
       <div class="section-heading section-heading--compact">
@@ -147,78 +226,142 @@
       </div>
       <div class="timeline-stage">
         <div class="timeline-stage__counter" id="timelineCounter">MILESTONE 01 / 05</div>
-        <article class="timeline-card" id="timelineCard">
-          <span id="timelinePhase">01 / FIRST DETECTION</span>
-          <h3 id="timelineTitle">The first realization</h3>
-          <p id="timelineText"></p>
-        </article>
-        <div class="trace-console" id="timelineConsole">
-          <div class="interaction-copy"><strong id="timelineActionLabel">TRACE THE MEMORY PATH</strong><small>GUIDE THE PULSE ALONG THE SIGNAL</small></div>
-          <div class="trace-console__path" id="timelineTrack">
-            <i id="timelineTrackFill"></i>
-            <span class="trace-console__milestones" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></span>
-            <button class="trace-console__handle" id="timelineHandle" type="button" aria-label="Drag to trace the memory path"><span>+</span></button>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY" data-touch-instruction="SWIPE UP TO SCROLL THROUGH THE TIMELINE" data-keyboard-instruction="USE UP/DOWN ARROWS OR PAGE KEYS TO SCROLL">
+          <span class="interaction-guide__text" id="timelineGuideText" aria-live="polite">SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY</span>
+          <span class="interaction-guide__demo" id="timelineGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
+          <button class="interaction-guide__show" id="timelineGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
+        </div>
+        <div id="timelineScrollRegion" tabindex="0" role="region" aria-label="Chronological memory milestones">
+          <svg id="timelineJourneyPath" viewBox="0 0 20 600" aria-hidden="true">
+            <path id="timelineBasePath" d="M 10,20 L 10,580"/>
+            <path id="timelineProgressPath" d="M 10,20 L 10,580"/>
+            <circle id="timelinePulse" cx="10" cy="20" r="5"/>
+          </svg>
+          <article class="timeline-card timeline-card--sticky" id="timelineCard">
+            <span id="timelinePhase">01 / FIRST DETECTION</span>
+            <h3 id="timelineTitle">The first quiet spark</h3>
+            <p id="timelineText"></p>
+          </article>
+          <ol id="timelineCheckpoints">
+            <li class="timeline-checkpoint is-current" data-timeline-index="0">
+              <button type="button"><strong>MILESTONE 01</strong><small>FIRST DETECTION</small></button>
+            </li>
+            <li class="timeline-checkpoint" data-timeline-index="1">
+              <button type="button"><strong>MILESTONE 02</strong><small>FAMILIAR SIGNAL</small></button>
+            </li>
+            <li class="timeline-checkpoint" data-timeline-index="2">
+              <button type="button"><strong>MILESTONE 03</strong><small>STABLE SIGNAL</small></button>
+            </li>
+            <li class="timeline-checkpoint" data-timeline-index="3">
+              <button type="button"><strong>MILESTONE 04</strong><small>EMOTIONAL CONFIRMATION</small></button>
+            </li>
+            <li class="timeline-checkpoint" data-timeline-index="4">
+              <button type="button"><strong>MILESTONE 05</strong><small>TRANSMISSION</small></button>
+            </li>
+          </ol>
+          <div style="text-align: center; margin-top: 24px;">
+            <button class="primary-button" id="timelineFinalContinue" type="button" hidden>PROCEED TO BARRIER &rarr;</button>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- Scene 5: Barrier (RESONATE) -->
     <section class="scene scene--barrier" data-scene="barrier" data-chapter="05" aria-label="Emotional barrier" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">05</span>
       <div class="barrier-visual" id="barrierVisual" aria-hidden="true">
-        <i></i><i></i><i></i>
-        <div><span id="barrierNumber">100</span><small>FIELD</small></div>
+        <div id="barrierRings">
+          <i class="resonance__ring" data-ring-index="0"></i>
+          <i class="resonance__ring" data-ring-index="1"></i>
+          <i class="resonance__ring" data-ring-index="2"></i>
+        </div>
+        <div id="barrierWindow"></div>
+        <div id="barrierPulse"></div>
+        <div id="barrierEmitter"></div>
+        <div id="barrierImpact"></div>
+        <div id="barrierShockwave"></div>
+        <div class="resonance__readout">
+          <span id="barrierNumber">100</span>
+          <small>FIELD</small>
+        </div>
       </div>
       <div class="barrier-copy">
-        <p class="eyebrow"><span>PHASE 04</span> A.T. FIELD METAPHOR</p>
+        <p class="eyebrow"><span>PHASE 04</span> A.T. FIELD RESONANCE</p>
         <h2>A message that has<br><em>been held back.</em></h2>
-        <p>A barrier is not always rejection—it can simply protect something until the time feels right.</p>
+        <p>A barrier is not always rejectionâ€”it can simply protect something until the time feels right.</p>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="RELEASE THE PULSE WHEN IT ALIGNS WITH THE GREEN WINDOW" data-touch-instruction="TAP TO RELEASE WHEN THE PULSE ENTERS THE WINDOW" data-keyboard-instruction="PRESS SPACEBAR OR ENTER WHEN ALIGNED">
+          <span class="interaction-guide__text" id="barrierGuideText" aria-live="polite">RELEASE THE PULSE WHEN IT ALIGNS WITH THE GREEN WINDOW</span>
+          <span class="interaction-guide__demo" id="barrierGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
+          <button class="interaction-guide__show" id="barrierGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
+        </div>
         <div class="barrier-meter"><i id="barrierBar"></i></div>
-        <button class="hold-strip hold-strip--barrier" id="barrierButton" type="button"><i aria-hidden="true"></i><span>HOLD TO OPEN THE BARRIER</span><small>LET THE MESSAGE PASS THROUGH</small></button>
+        <p id="barrierFeedback" aria-live="polite">PULSE READY / TIMING CRITICAL</p>
+        <button class="primary-button" id="barrierButton" type="button">RELEASE RESONANCE PULSE</button>
       </div>
     </section>
 
+    <!-- Scene 6: Letter (RECONSTRUCT) -->
     <section class="scene scene--letter" data-scene="letter" data-chapter="06" aria-label="Private message" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">06</span>
       <article class="letter-card">
         <div class="letter-card__top"><span>UNSENT MESSAGE / RECOVERED</span><span>PRIVATE</span></div>
         <p class="eyebrow"><span>TO</span> <b data-recipient>Maureen</b></p>
         <h2>A message beyond<br><em>the interface.</em></h2>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="GUIDE THE MAGNETIC ORB TO RECONSTRUCT THE LETTER" data-touch-instruction="DRAG THE ORB TO ATTRACT LETTER FRAGMENTS" data-keyboard-instruction="USE ARROW KEYS TO MOVE THE ORB">
+          <span class="interaction-guide__text" id="letterGuideText" aria-live="polite">GUIDE THE MAGNETIC ORB TO RECONSTRUCT THE LETTER</span>
+          <span class="interaction-guide__demo" id="letterGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
+          <button class="interaction-guide__show" id="letterGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
+        </div>
         <div class="letter-fragment">
           <span id="letterCounter">MESSAGE FRAGMENT 01 / 03</span>
           <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
         </div>
-        <div class="letter-signature">— <span data-sender>Ayyash</span></div>
+        <div class="letter-signature" id="letterSignature">&mdash; <span data-sender>Ayyash</span></div>
+        <div id="letterReconstruct">
+          <div id="letterReconstructField">
+            <div id="letterFragmentLayer" aria-hidden="true">
+              <span class="reconstruct__fragment" data-fragment-index="0">&sect; 01</span>
+              <span class="reconstruct__fragment" data-fragment-index="1">&sect; 02</span>
+              <span class="reconstruct__fragment" data-fragment-index="2">&sect; 03</span>
+            </div>
+            <div id="letterReconstructZone" aria-hidden="true">TARGET</div>
+            <button id="letterOrb" type="button" aria-label="Magnetic reconstruction orb"></button>
+          </div>
+          <div id="letterReconstructStatus" aria-live="polite">RECONSTRUCTION / READY</div>
+        </div>
       </article>
-      <button class="message-seal" id="letterSeal" type="button" aria-label="Hold to recover the next message fragment">
-        <span class="message-seal__rings" aria-hidden="true"><i></i><i></i><b>00</b></span>
-        <span><strong id="letterActionLabel">HOLD TO RECOVER NEXT FRAGMENT</strong><small>KEEP THE PRIVATE CHANNEL OPEN</small></span>
+      <div id="letterSealLayer" aria-hidden="true"></div>
+      <button class="message-seal" id="letterSeal" type="button" disabled hidden aria-label="Open response channel to Ayyash">
+        <span class="message-seal__rings" aria-hidden="true"><i></i><i></i><b>03</b></span>
+        <span><strong id="letterActionLabel">OPEN RESPONSE CHANNEL</strong><small>CONFIRM TRANSMISSION</small></span>
       </button>
     </section>
 
+    <!-- Scene 7: Response (CHOOSE) -->
     <section class="scene scene--response" data-scene="response" data-chapter="07" aria-label="Response channel" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">07</span>
       <div class="response-panel">
         <p class="eyebrow"><span>HEART SIGNAL</span> A QUESTION FROM <b data-sender>AYYASH</b></p>
         <h2><span data-recipient>Maureen</span>, can I get to<br><em>know you more?</em></h2>
-        <p class="response-lead">Every quiet signal on this page carries one honest truth: knowing you made ordinary days feel brighter. There is no pressure and no promise you have to make—only Ayyash asking for a chance to know you more, one sincere conversation at a time.</p>
+        <p class="response-lead">Every quiet signal on this page carries one honest truth: knowing you made ordinary days feel brighter. There is no pressure and no promise you have to makeâ€”only Ayyash asking for a chance to know you more, one sincere conversation at a time.</p>
         <div class="response-options response-options--binary" id="responseOptions" aria-label="Choose your answer to Ayyash">
-          <button class="response-yes" type="button" data-response="yes"><i aria-hidden="true"></i><span>YES — LET'S GET TO KNOW EACH OTHER</span></button>
-          <button class="response-no" id="noResponseButton" type="button" data-response="no"><i aria-hidden="true"></i><span>NO — I'D RATHER NOT</span></button>
+          <button class="response-yes" type="button" data-response="yes"><i aria-hidden="true"></i><span>YES &mdash; LET'S GET TO KNOW EACH OTHER</span></button>
+          <button class="response-no" id="noResponseButton" type="button" data-response="no"><i aria-hidden="true"></i><span>NO &mdash; I'D RATHER NOT</span></button>
         </div>
-        <small class="no-hint" id="noHint">THE “NO” SIGNAL MAY DRIFT TWICE, THEN IT WILL STAY STILL—THE CHOICE IS ALWAYS YOURS.</small>
+        <small class="no-hint" id="noHint">THE &ldquo;NO&rdquo; SIGNAL MAY DRIFT TWICE, THEN IT WILL STAY STILLâ€”THE CHOICE IS ALWAYS YOURS.</small>
         <p class="response-feedback" id="responseFeedback" aria-live="polite">RESPONSE CHANNEL / WAITING</p>
         <button class="text-button" id="changeResponse" type="button" hidden>CHANGE LOCAL RESPONSE</button>
       </div>
     </section>
 
+    <!-- Scene 8: Reply (REPLY) -->
     <section class="scene scene--reply" data-scene="reply" data-chapter="08" aria-label="Reply to Ayyash" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">08</span>
       <div class="reply-panel">
         <p class="eyebrow"><span>ANSWER RECEIVED</span> TWO SIGNALS / ONE BEGINNING</p>
         <div class="reply-orbits" aria-hidden="true"><i>A</i><i>M</i><b></b></div>
         <h2>Your answer reached<br><em data-sender>Ayyash.</em></h2>
-        <p class="reply-lead">Ayyash has shared the words he kept quietly in his heart. Now the next words can be yours—tell him what this message made you feel.</p>
+        <p class="reply-lead">Ayyash has shared the words he kept quietly in his heart. Now the next words can be yoursâ€”tell him what this message made you feel.</p>
         <label class="reply-label" for="replyMessage">WHAT WOULD YOU LIKE AYYASH TO KNOW?</label>
         <textarea id="replyMessage" maxlength="700" placeholder="Write something for Ayyash..."></textarea>
         <a class="whatsapp-button" id="whatsappReply" href="https://wa.me/6285788949082" target="_blank" rel="noopener noreferrer">

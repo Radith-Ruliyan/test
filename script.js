@@ -1,4 +1,8 @@
-/* Ayyash → Maureen // edit this object to personalize the private signal. */
+/* ==========================================================================
+   AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
+   Interaction Architecture, Mechanics & State Controller (AI #3)
+   ========================================================================== */
+
 const siteConfig = {
   senderName: "Ayyash",
   recipientName: "Maureen",
@@ -30,36 +34,24 @@ const siteConfig = {
   }
 };
 
+/* --------------------------------------------------------------------------
+   UTILITY HELPERS & QUERY SELECTORS
+   -------------------------------------------------------------------------- */
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
+const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-const coarsePointer = window.matchMedia("(hover: none), (pointer: coarse)");
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function announce(message) {
   const region = $("#liveRegion");
   if (region) region.textContent = message;
 }
 
-function setupAppHeight() {
-  const update = () => {
-    const height = window.visualViewport?.height || window.innerHeight;
-    document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
-    if (typeof sceneManager !== "undefined" && sceneManager.state.current) {
-      sceneManager.updateChrome(sceneManager.state.current);
-    }
-  };
-  update();
-  window.addEventListener("resize", update, { passive: true });
-  window.addEventListener("orientationchange", update, { passive: true });
-  window.visualViewport?.addEventListener("resize", update, { passive: true });
-}
-
 function applyConfig() {
-  $$('[data-recipient]').forEach((node) => { node.textContent = siteConfig.recipientName; });
-  $$('[data-sender]').forEach((node) => { node.textContent = siteConfig.senderName; });
-  const opening = $('[data-opening]');
-  if (opening) opening.textContent = siteConfig.opening;
+  $$("[data-recipient]").forEach(el => { el.textContent = siteConfig.recipientName; });
+  $$("[data-sender]").forEach(el => { el.textContent = siteConfig.senderName; });
+  const openingEl = $("[data-opening]");
+  if (openingEl) openingEl.textContent = siteConfig.opening;
 }
 
 const decryptTimers = new WeakMap();
@@ -78,7 +70,7 @@ function decryptText(element, finalText) {
       if (char === " ") return " ";
       return index < iteration ? char : chars[Math.floor(Math.random() * chars.length)];
     }).join("");
-    iteration += 2.2;
+    iteration += 2.4;
     if (iteration >= finalText.length) {
       clearInterval(timer);
       decryptTimers.delete(element);
@@ -88,880 +80,1359 @@ function decryptText(element, finalText) {
   decryptTimers.set(element, timer);
 }
 
-function setupAssetFallbacks() {
-  $$(".asset-frame img").forEach((image) => {
-    const frame = image.closest(".asset-frame");
-    const fail = () => {
-      image.hidden = true;
-      frame?.classList.add("is-fallback");
+/* --------------------------------------------------------------------------
+   INPUT MODE TRACKER (pointer | touch | keyboard | wheel)
+   -------------------------------------------------------------------------- */
+const inputModeTracker = {
+  current: "pointer",
+  init() {
+    window.addEventListener("pointerdown", (e) => {
+      this.setMode(e.pointerType === "touch" ? "touch" : "pointer");
+    }, { passive: true });
+    window.addEventListener("keydown", () => {
+      this.setMode("keyboard");
+    }, { passive: true });
+    window.addEventListener("wheel", () => {
+      this.setMode("wheel");
+    }, { passive: true });
+  },
+  setMode(mode) {
+    if (this.current === mode) return;
+    this.current = mode;
+    document.body.dataset.inputMode = mode;
+    hintController.updateInstruction();
+  }
+};
+
+/* --------------------------------------------------------------------------
+   AUDIO SYSTEM (Safe Unlock, Ambient Synth, Interface SFX)
+   -------------------------------------------------------------------------- */
+const soundSystem = {
+  ambientAudio: null,
+  interfaceAudio: null,
+  audioBtn: null,
+  enabled: false,
+  unlocked: false,
+
+  init() {
+    this.ambientAudio = $("#ambientAudio");
+    this.interfaceAudio = $("#interfaceAudio");
+    this.audioBtn = $("#audioButton");
+
+    if (this.audioBtn) {
+      this.audioBtn.addEventListener("click", () => this.toggleAudio());
+    }
+
+    const unlock = () => {
+      if (!this.unlocked) {
+        this.unlocked = true;
+        if (this.enabled && this.ambientAudio) {
+          this.ambientAudio.play().catch(() => {});
+        }
+      }
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
-    image.addEventListener("error", fail, { once: true });
-    if (image.complete && image.naturalWidth === 0) fail();
-  });
-}
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock, { passive: true });
+  },
 
-let ambientAudioActive = false;
-let lastInterfacePulse = 0;
-
-function updateAudioButton() {
-  const button = $("#audioButton");
-  if (!button) return;
-  button.textContent = ambientAudioActive ? "AUDIO / ON" : "AUDIO / OFF";
-  button.setAttribute("aria-pressed", String(ambientAudioActive));
-  button.setAttribute("aria-label", ambientAudioActive ? "Turn off audio" : "Turn on audio");
-}
-
-function startAmbientAudio() {
-  const audio = $("#ambientAudio");
-  if (!audio) return;
-  audio.volume = .34;
-  audio.play().then(() => {
-    ambientAudioActive = true;
-    updateAudioButton();
-  }).catch(() => {
-    ambientAudioActive = false;
-    updateAudioButton();
-  });
-}
-
-function playInterfaceSound() {
-  const audio = $("#interfaceAudio");
-  if (!audio || !ambientAudioActive) return;
-  const now = performance.now();
-  if (now - lastInterfacePulse < 140) return;
-  lastInterfacePulse = now;
-  audio.currentTime = 0;
-  audio.play().catch(() => {});
-}
-
-function setupAudio() {
-  const button = $("#audioButton");
-  const ambient = $("#ambientAudio");
-  const ui = $("#interfaceAudio");
-  if (!button || !ambient) return;
-  ambient.volume = .34;
-  if (ui) ui.volume = .24;
-  button.addEventListener("click", () => {
-    if (ambientAudioActive) {
-      ambient.pause();
-      ambientAudioActive = false;
-      updateAudioButton();
+  toggleAudio() {
+    this.enabled = !this.enabled;
+    if (this.audioBtn) {
+      this.audioBtn.setAttribute("aria-pressed", String(this.enabled));
+      this.audioBtn.textContent = this.enabled ? "AUDIO / ON" : "AUDIO / OFF";
+    }
+    if (this.enabled) {
+      this.playAmbient();
+      this.playInterface();
     } else {
-      startAmbientAudio();
+      this.stopAmbient();
     }
-  });
-  ambient.addEventListener("error", () => {
-    ambientAudioActive = false;
-    button.textContent = "AUDIO / N/A";
-    button.setAttribute("aria-pressed", "false");
-  }, { once: true });
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && ambientAudioActive) ambient.pause();
-    else if (!document.hidden && ambientAudioActive) ambient.play().catch(() => {});
-  });
-}
+  },
 
-function createHoldInteraction(button, options) {
-  if (!button) return null;
-  const duration = options.duration || 1500;
-  let progress = 0;
-  let holding = false;
-  let completed = false;
-  let startedAt = 0;
-  let frame = 0;
-  let activePointerId = null;
-
-  const paint = (value) => {
-    progress = clamp(value, 0, 1);
-    button.style.setProperty("--hold-progress", `${progress * 100}%`);
-    options.onProgress?.(progress);
-  };
-
-  const tick = (time) => {
-    if (!holding || completed) return;
-    if (!startedAt) startedAt = time - progress * duration;
-    paint((time - startedAt) / duration);
-    if (progress >= 1) {
-      completed = true;
-      holding = false;
-      button.classList.remove("is-holding");
-      button.setAttribute("aria-pressed", "true");
-      options.onComplete?.();
-      return;
+  playAmbient() {
+    if (this.enabled && this.ambientAudio) {
+      this.ambientAudio.play().catch(() => {});
     }
-    frame = requestAnimationFrame(tick);
-  };
+  },
 
-  const start = (event) => {
-    if (completed || button.disabled || sceneManager.state.transitioning) return;
-    if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
-    if (event.type === "pointerdown" && event.button !== undefined && event.button !== 0) return;
-    if (event.cancelable) event.preventDefault();
-    if (event.type === "pointerdown") {
-      activePointerId = event.pointerId;
-      try { button.setPointerCapture?.(activePointerId); } catch (_) {}
+  stopAmbient() {
+    if (this.ambientAudio) {
+      this.ambientAudio.pause();
     }
-    holding = true;
-    button.classList.add("is-holding");
-    startedAt = performance.now() - progress * duration;
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(tick);
-  };
+  },
 
-  const stop = (event) => {
-    if (event?.type === "keyup" && !["Enter", " "].includes(event.key)) return;
-    if (event?.type?.startsWith("pointer") && activePointerId !== null && event.pointerId !== activePointerId) return;
-    if (event?.cancelable) event.preventDefault();
-    if (activePointerId !== null) {
-      try { button.releasePointerCapture?.(activePointerId); } catch (_) {}
-      activePointerId = null;
+  playInterface() {
+    if (this.enabled && this.interfaceAudio) {
+      try {
+        this.interfaceAudio.currentTime = 0;
+        this.interfaceAudio.play().catch(() => {});
+      } catch (e) {}
     }
-    if (!holding) return;
-    holding = false;
-    button.classList.remove("is-holding");
-    cancelAnimationFrame(frame);
-    if (!completed) {
-      paint(0);
-      options.onCancel?.();
-    }
-  };
-
-  button.addEventListener("pointerdown", start);
-  button.addEventListener("pointerup", stop);
-  button.addEventListener("pointercancel", stop);
-  button.addEventListener("pointerleave", stop);
-  button.addEventListener("keydown", start);
-  button.addEventListener("keyup", stop);
-  const blockNativeHoldUi = (event) => {
-    if (event.cancelable) event.preventDefault();
-  };
-  button.addEventListener("contextmenu", blockNativeHoldUi);
-  button.addEventListener("selectstart", blockNativeHoldUi);
-  button.addEventListener("dragstart", blockNativeHoldUi);
-  if (reduceMotion.matches) {
-    button.addEventListener("click", () => {
-      if (completed || button.disabled) return;
-      paint(1);
-      completed = true;
-      options.onComplete?.();
-    });
   }
-
-  return {
-    reset() {
-      completed = false;
-      holding = false;
-      startedAt = 0;
-      cancelAnimationFrame(frame);
-      if (activePointerId !== null) {
-        try { button.releasePointerCapture?.(activePointerId); } catch (_) {}
-        activePointerId = null;
-      }
-      button.classList.remove("is-holding");
-      button.removeAttribute("aria-pressed");
-      paint(0);
-    },
-    complete() {
-      if (completed) return;
-      paint(1);
-      completed = true;
-      options.onComplete?.();
-    }
-  };
-}
-
-function createHorizontalDrag(options) {
-  const { track, handle } = options;
-  if (!track || !handle) return null;
-  let progress = 0;
-  let dragging = false;
-  let completed = false;
-  let pointerId = null;
-  let startX = 0;
-  let startProgress = 0;
-
-  const maxDistance = () => Math.max(1, track.clientWidth - handle.offsetWidth - 7);
-  const paint = (value, animate = false) => {
-    progress = clamp(value, 0, 1);
-    handle.style.transition = animate ? "transform .28s cubic-bezier(.2,.8,.2,1)" : "none";
-    handle.style.setProperty("--drag-x", `${progress * maxDistance()}px`);
-    track.style.setProperty("--drag-progress", `${progress * 100}%`);
-    options.onProgress?.(progress);
-    if (animate) window.setTimeout(() => { handle.style.transition = ""; }, 300);
-  };
-
-  const finish = () => {
-    if (completed || progress < (options.threshold || .86)) {
-      if (!completed) paint(0, true);
-      return;
-    }
-    completed = true;
-    paint(1, true);
-    handle.classList.remove("is-dragging");
-    options.onComplete?.();
-  };
-
-  handle.addEventListener("pointerdown", (event) => {
-    if (completed || sceneManager.state.transitioning) return;
-    event.preventDefault();
-    dragging = true;
-    pointerId = event.pointerId;
-    startX = event.clientX;
-    startProgress = progress;
-    handle.classList.add("is-dragging");
-    handle.setPointerCapture?.(pointerId);
-  });
-
-  handle.addEventListener("pointermove", (event) => {
-    if (!dragging || event.pointerId !== pointerId) return;
-    event.preventDefault();
-    paint(startProgress + (event.clientX - startX) / maxDistance());
-  });
-
-  const release = (event) => {
-    if (!dragging || (event.pointerId !== undefined && event.pointerId !== pointerId)) return;
-    dragging = false;
-    handle.classList.remove("is-dragging");
-    try { handle.releasePointerCapture?.(pointerId); } catch (_) {}
-    pointerId = null;
-    finish();
-  };
-  handle.addEventListener("pointerup", release);
-  handle.addEventListener("pointercancel", release);
-
-  handle.addEventListener("keydown", (event) => {
-    if (completed) return;
-    if (["Enter", " "].includes(event.key)) {
-      event.preventDefault();
-      paint(1, true);
-      completed = true;
-      options.onComplete?.();
-    } else if (event.key === "ArrowRight") {
-      event.preventDefault();
-      paint(progress + .16, true);
-      if (progress >= (options.threshold || .86)) finish();
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      paint(progress - .16, true);
-    }
-  });
-
-  window.addEventListener("resize", () => paint(progress), { passive: true });
-  return {
-    reset() {
-      completed = false;
-      dragging = false;
-      handle.classList.remove("is-dragging");
-      paint(0, true);
-    },
-    set(value) { paint(value); }
-  };
-}
-
-const sceneOrder = ["hero", "connection", "records", "timeline", "barrier", "letter", "response", "reply"];
-const chapterMeta = {
-  hero: { number: "01", title: "SIGNAL DETECTED", transition: "SIGNAL RECOGNIZED" },
-  connection: { number: "02", title: "CONNECTION", transition: "EMOTIONAL FREQUENCY MATCHED" },
-  records: { number: "03", title: "PERSONAL RECORDS", transition: "PERSONAL RECORD CHANNEL OPEN" },
-  timeline: { number: "04", title: "SIGNAL HISTORY", transition: "MEMORY PATH RESTORED" },
-  barrier: { number: "05", title: "EMOTIONAL BARRIER", transition: "EMOTIONAL BARRIER DETECTED" },
-  letter: { number: "06", title: "PRIVATE MESSAGE", transition: "PRIVATE MESSAGE RECOVERED" },
-  response: { number: "07", title: "HEART QUESTION", transition: "FINAL HEART SIGNAL OPEN" },
-  reply: { number: "08", title: "PRIVATE REPLY", transition: "TWO SIGNALS MATCHED" }
 };
 
-const savedUnlock = Number.parseInt(sessionStorage.getItem("reiSignalUnlocked") || "-1", 10);
+/* --------------------------------------------------------------------------
+   PROGRESSIVE HINT CONTROLLER (Levels 1 to 4)
+   -------------------------------------------------------------------------- */
+const hintController = {
+  activeGuide: null,
+  timers: [],
+  level: 1,
+
+  attach(sceneElement) {
+    this.detach();
+    if (!sceneElement) return;
+    this.activeGuide = sceneElement.querySelector(".interaction-guide");
+    if (!this.activeGuide) return;
+
+    this.level = 1;
+    this.activeGuide.dataset.hintLevel = "1";
+    this.updateInstruction();
+
+    const replayBtn = this.activeGuide.querySelector("[data-hint-replay]");
+    if (replayBtn) {
+      replayBtn.onclick = () => {
+        this.level = 2;
+        this.activeGuide.dataset.hintLevel = "2";
+      };
+    }
+
+    // Schedule progressive levels on idle
+    this.timers.push(window.setTimeout(() => this.setLevel(2), 3200));
+    this.timers.push(window.setTimeout(() => this.setLevel(3), 7500));
+    this.timers.push(window.setTimeout(() => this.setLevel(4), 12500));
+  },
+
+  setLevel(lvl) {
+    if (!this.activeGuide) return;
+    this.level = Math.max(this.level, lvl);
+    this.activeGuide.dataset.hintLevel = String(this.level);
+  },
+
+  notifyProgress() {
+    if (!this.activeGuide) return;
+    this.activeGuide.style.opacity = "0.35";
+  },
+
+  updateInstruction() {
+    if (!this.activeGuide) return;
+    const textEl = this.activeGuide.querySelector(".interaction-guide__text");
+    if (!textEl) return;
+
+    const mode = inputModeTracker.current;
+    let msg = this.activeGuide.dataset.pointerInstruction;
+    if (mode === "touch" && this.activeGuide.dataset.touchInstruction) {
+      msg = this.activeGuide.dataset.touchInstruction;
+    } else if (mode === "keyboard" && this.activeGuide.dataset.keyboardInstruction) {
+      msg = this.activeGuide.dataset.keyboardInstruction;
+    }
+    if (msg) textEl.textContent = msg;
+  },
+
+  detach() {
+    this.timers.forEach(t => clearTimeout(t));
+    this.timers = [];
+    if (this.activeGuide) {
+      this.activeGuide.style.opacity = "";
+      this.activeGuide = null;
+    }
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MANAGER & CHAPTER TRANSITIONS
+   -------------------------------------------------------------------------- */
 const sceneManager = {
-  state: {
-    current: "boot",
-    transitioning: false,
-    maxUnlocked: Number.isFinite(savedUnlock) ? savedUnlock : -1,
-    recordIndex: 0,
-    timelineIndex: 0,
-    letterIndex: 0
+  scenes: ["boot", "hero", "connection", "records", "timeline", "barrier", "letter", "response", "reply"],
+  currentScene: "boot",
+  isTransitioning: false,
+
+  init() {
+    this.createPips();
+    this.updateChrome("boot");
+    setupAppHeight();
   },
 
-  unlock(name) {
-    const index = sceneOrder.indexOf(name);
-    if (index < 0) return;
-    this.state.maxUnlocked = Math.max(this.state.maxUnlocked, index);
-    sessionStorage.setItem("reiSignalUnlocked", String(this.state.maxUnlocked));
-  },
-
-  canEnter(name) {
-    if (name === "boot") return true;
-    const index = sceneOrder.indexOf(name);
-    return index >= 0 && index <= this.state.maxUnlocked;
-  },
-
-  advanceTo(name) {
-    this.unlock(name);
-    this.goTo(name, { direction: "forward" });
-  },
-
-  goTo(name, options = {}) {
-    if (this.state.transitioning || name === this.state.current) return;
-    if (!this.canEnter(name)) return;
-    this.state.transitioning = true;
-    const overlay = $("#chapterTransition");
-    const targetMeta = chapterMeta[name];
-    $("#transitionNumber").textContent = targetMeta?.number || "00";
-    $("#transitionText").textContent = targetMeta?.transition || "RETURNING TO SIGNAL";
-    $("#transitionBar").style.width = "0%";
-    overlay?.classList.add("is-active");
-    requestAnimationFrame(() => { $("#transitionBar").style.width = "100%"; });
-
-    const swapDelay = reduceMotion.matches ? 30 : 360;
-    const finishDelay = reduceMotion.matches ? 60 : 760;
-    window.setTimeout(() => {
-      this.swap(name);
-      this.state.current = name;
-      this.updateChrome(name);
-      this.updateHash(name, options.historyMode);
-    }, swapDelay);
-    window.setTimeout(() => {
-      overlay?.classList.remove("is-active");
-      this.state.transitioning = false;
-      onSceneEntered(name);
-      const scene = $(`.scene[data-scene="${name}"]`);
-      scene?.setAttribute("tabindex", "-1");
-      scene?.focus({ preventScroll: true });
-    }, finishDelay);
-  },
-
-  swap(name) {
-    $$(".scene").forEach((scene) => {
-      const active = scene.dataset.scene === name;
-      scene.classList.toggle("is-active", active);
-      scene.setAttribute("aria-hidden", String(!active));
-    });
-    document.body.dataset.activeScene = name;
-  },
-
-  updateHash(name, mode) {
-    if (mode === "skip") return;
-    const hash = `#${name}`;
-    if (mode === "replace" || !location.hash) history.replaceState({ scene: name }, "", hash);
-    else if (location.hash !== hash) history.pushState({ scene: name }, "", hash);
-  },
-
-  updateChrome(name) {
-    const label = $("#topbarChapter");
-    if (label) {
-      const compact = window.innerWidth < 560;
-      const total = String(sceneOrder.length).padStart(2, "0");
-      label.textContent = name === "boot"
-        ? "SYSTEM BOOT"
-        : compact
-          ? `CH. ${chapterMeta[name].number} / ${total}`
-          : `CH. ${chapterMeta[name].number} / ${total} — ${chapterMeta[name].title}`;
+  createPips() {
+    const container = $("#chapterPips");
+    if (!container) return;
+    container.innerHTML = "";
+    // Chapters 1 to 8 (boot is 0)
+    for (let i = 1; i <= 8; i++) {
+      const pip = document.createElement("i");
+      pip.dataset.pipIndex = String(i);
+      container.appendChild(pip);
     }
-    const currentIndex = sceneOrder.indexOf(name);
-    $$("#chapterPips i").forEach((pip, index) => {
-      pip.classList.toggle("is-active", index === currentIndex);
-      pip.classList.toggle("is-past", index < currentIndex);
+  },
+
+  updateChrome(sceneName) {
+    document.body.dataset.activeScene = sceneName;
+    const topbarChapter = $("#topbarChapter");
+    const sceneIndex = this.scenes.indexOf(sceneName);
+
+    const chapterTitles = {
+      boot: "SYSTEM BOOT",
+      hero: "CHAPTER 01 / SIGNAL DETECTED",
+      connection: "CHAPTER 02 / FREQUENCY TUNE",
+      records: "CHAPTER 03 / PERSONAL ARCHIVE",
+      timeline: "CHAPTER 04 / SIGNAL DEVELOPMENT",
+      barrier: "CHAPTER 05 / A.T. FIELD RESONANCE",
+      letter: "CHAPTER 06 / MESSAGE RECONSTRUCTION",
+      response: "CHAPTER 07 / RESPONSE CHANNEL",
+      reply: "CHAPTER 08 / SINCERE TRANSMISSION"
+    };
+
+    if (topbarChapter) {
+      topbarChapter.textContent = chapterTitles[sceneName] || "REI TRANSMISSION";
+    }
+
+    const pips = $$("#chapterPips i");
+    pips.forEach((pip, idx) => {
+      const pipChapter = idx + 1;
+      pip.classList.toggle("is-past", pipChapter < sceneIndex);
+      pip.classList.toggle("is-active", pipChapter === sceneIndex);
     });
   },
 
-  buildPips() {
-    const wrap = $("#chapterPips");
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    sceneOrder.forEach(() => wrap.append(document.createElement("i")));
+  advanceTo(nextScene) {
+    if (this.isTransitioning || this.currentScene === nextScene) return;
+    this.isTransitioning = true;
+
+    soundSystem.playInterface();
+    const currentEl = $(`.scene[data-scene="${this.currentScene}"]`);
+    const nextEl = $(`.scene[data-scene="${nextScene}"]`);
+    const transitionOverlay = $("#chapterTransition");
+    const transitionNum = $("#transitionNumber");
+    const transitionText = $("#transitionText");
+    const transitionBar = $("#transitionBar");
+
+    // Exit active module
+    const currentModule = sceneModules[this.currentScene];
+    if (currentModule?.exit) currentModule.exit();
+    hintController.detach();
+
+    if (transitionOverlay && nextScene !== "boot") {
+      const nextIndex = this.scenes.indexOf(nextScene);
+      if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
+      if (transitionText) transitionText.textContent = `PHASE 0${nextIndex} / INITIALIZING`;
+
+      transitionOverlay.classList.add("is-active", `is-${nextScene}`);
+      if (transitionBar) transitionBar.style.width = "100%";
+
+      window.setTimeout(() => {
+        if (currentEl) {
+          currentEl.classList.remove("is-active");
+          currentEl.setAttribute("aria-hidden", "true");
+        }
+        if (nextEl) {
+          nextEl.classList.add("is-active");
+          nextEl.setAttribute("aria-hidden", "false");
+        }
+
+        this.currentScene = nextScene;
+        this.updateChrome(nextScene);
+
+        const nextModule = sceneModules[nextScene];
+        if (nextModule?.enter) nextModule.enter();
+        hintController.attach(nextEl);
+
+        window.setTimeout(() => {
+          transitionOverlay.classList.remove("is-active", `is-${nextScene}`);
+          if (transitionBar) transitionBar.style.width = "0%";
+          this.isTransitioning = false;
+        }, 350);
+      }, 700);
+    } else {
+      if (currentEl) {
+        currentEl.classList.remove("is-active");
+        currentEl.setAttribute("aria-hidden", "true");
+      }
+      if (nextEl) {
+        nextEl.classList.add("is-active");
+        nextEl.setAttribute("aria-hidden", "false");
+      }
+      this.currentScene = nextScene;
+      this.updateChrome(nextScene);
+
+      const nextModule = sceneModules[nextScene];
+      if (nextModule?.enter) nextModule.enter();
+      hintController.attach(nextEl);
+      this.isTransitioning = false;
+    }
   }
 };
 
-let bootHold;
-let heroDrag;
-let connectionHold;
-let recordDrag;
-let timelineDrag;
-let barrierHold;
-let letterHold;
+/* --------------------------------------------------------------------------
+   SCENE MODULE 0: BOOT (CRITICAL FINGERPRINT SCANNER PRESERVED)
+   -------------------------------------------------------------------------- */
+const bootScene = {
+  enterButton: null,
+  bootBar: null,
+  bootPercent: null,
+  bootLog: null,
+  holdTimer: null,
+  progress: 0,
 
-function setupBoot() {
-  const bar = $("#bootBar");
-  const percent = $("#bootPercent");
-  const log = $("#bootLog");
-  const button = $("#enterButton");
-  if (!bar || !percent || !log || !button) return;
-  const logs = [
-    "INITIALIZING PRIVATE TRANSMISSION...",
-    "EMOTIONAL SIGNAL DETECTED...",
-    "UNKNOWN EMOTIONAL PATTERN FOUND...",
-    "RECIPIENT IDENTITY LOADED...",
-    "UNSENT MESSAGE RECOVERED...",
-    "TRANSMISSION READY."
-  ];
-  let value = sessionStorage.getItem("reiSignalIntro") === "seen" || reduceMotion.matches ? 100 : 0;
-  const finish = () => {
-    value = 100;
-    bar.style.width = "100%";
-    percent.textContent = "100";
-    log.textContent = logs.at(-1);
-    button.disabled = false;
-  };
-  if (value === 100) finish();
-  else {
-    const timer = window.setInterval(() => {
-      value = Math.min(100, value + Math.ceil(Math.random() * 5));
-      bar.style.width = `${value}%`;
-      percent.textContent = String(value).padStart(2, "0");
-      log.textContent = logs[Math.min(logs.length - 1, Math.floor(value / 20))];
-      if (value >= 100) {
-        clearInterval(timer);
-        finish();
+  init() {
+    this.enterButton = $("#enterButton");
+    this.bootBar = $("#bootBar");
+    this.bootPercent = $("#bootPercent");
+    this.bootLog = $("#bootLog");
+
+    let calib = 0;
+    const interval = setInterval(() => {
+      calib += 10;
+      if (this.bootBar) this.bootBar.style.width = `${calib}%`;
+      if (this.bootPercent) this.bootPercent.textContent = String(calib).padStart(2, "0");
+      if (calib >= 100) {
+        clearInterval(interval);
+        if (this.bootLog) this.bootLog.textContent = "AUTHENTICATION REQUIRED / PLACE FINGERPRINT";
+        if (this.enterButton) this.enterButton.disabled = false;
       }
-    }, 90);
+    }, 45);
+
+    this.setupHold();
+  },
+
+  setupHold() {
+    if (!this.enterButton) return;
+    const btn = this.enterButton;
+
+    const start = () => {
+      if (btn.disabled) return;
+      btn.classList.add("is-holding");
+      soundSystem.playInterface();
+      this.holdTimer = setInterval(() => {
+        this.progress += 4;
+        if (this.bootBar) this.bootBar.style.width = `${this.progress}%`;
+        if (this.bootPercent) this.bootPercent.textContent = String(this.progress).padStart(2, "0");
+
+        if (this.progress >= 100) {
+          clearInterval(this.holdTimer);
+          btn.classList.remove("is-holding");
+          btn.disabled = true;
+          if (this.bootLog) this.bootLog.textContent = "SIGNAL VERIFIED / ACCESS GRANTED";
+          announce("Authentication complete. Entering private signal.");
+          window.setTimeout(() => {
+            sceneManager.advanceTo("hero");
+          }, 450);
+        }
+      }, 35);
+    };
+
+    const end = () => {
+      if (this.progress < 100) {
+        clearInterval(this.holdTimer);
+        this.progress = 0;
+        btn.classList.remove("is-holding");
+        if (this.bootBar) this.bootBar.style.width = "100%";
+        if (this.bootPercent) this.bootPercent.textContent = "100";
+      }
+    };
+
+    btn.addEventListener("pointerdown", start);
+    btn.addEventListener("pointerup", end);
+    btn.addEventListener("pointerleave", end);
+    btn.addEventListener("pointercancel", end);
+  },
+
+  enter() {},
+  exit() {
+    clearInterval(this.holdTimer);
+  },
+  reset() {
+    this.progress = 0;
+    if (this.enterButton) this.enterButton.disabled = false;
   }
-  bootHold = createHoldInteraction(button, {
-    duration: 1250,
-    onComplete: () => {
-      startAmbientAudio();
-      playInterfaceSound();
-      sessionStorage.setItem("reiSignalIntro", "seen");
-      sceneManager.advanceTo("hero");
-    }
-  });
-}
+};
 
-function setupHeroInteraction() {
-  const track = $("#heroSignalTrack");
-  const handle = $("#heroSignalHandle");
-  const align = $("#heroSignalAlign");
-  const beam = $("#heroSignalBeam");
-  const distance = $("#heroSignalDistance");
-  heroDrag = createHorizontalDrag({
-    track,
-    handle,
-    threshold: .82,
-    onProgress: (progress) => {
-      if (beam) beam.style.width = `${progress * Math.max(0, track.clientWidth - 62)}px`;
-      if (distance) distance.textContent = String(Math.round((1 - progress) * 100)).padStart(2, "0");
-    },
-    onComplete: () => {
-      align?.classList.add("is-complete");
-      announce("Both signals are aligned.");
-      playInterfaceSound();
-      window.setTimeout(() => sceneManager.advanceTo("connection"), reduceMotion.matches ? 40 : 650);
-    }
-  });
-}
+/* --------------------------------------------------------------------------
+   SCENE MODULE 1: HERO (ATTRACT)
+   -------------------------------------------------------------------------- */
+const heroScene = {
+  handle: null,
+  track: null,
+  distanceEl: null,
+  beamEl: null,
+  curvePath: null,
+  fieldEl: null,
+  isDragging: false,
+  dragX: 0,
+  maxDrag: 240,
+  completed: false,
 
-function resetConnectionView() {
-  $("#syncPanel")?.classList.remove("is-complete");
-  $("#syncValue").textContent = "00";
-  $("#syncLine").style.width = "0%";
-  $("#syncStatus").textContent = "CONNECTION STANDBY";
-  $("#syncMessage").textContent = "The signal has not been sent yet.";
-  const button = $("#syncButton");
-  if (button) {
-    button.disabled = false;
-    button.querySelector("span").textContent = "PRESS & HOLD TO CONNECT";
+  init() {
+    this.handle = $("#heroSignalHandle");
+    this.track = $("#heroSignalTrack");
+    this.distanceEl = $("#heroSignalDistance");
+    this.beamEl = $("#heroSignalBeam");
+    this.curvePath = $("#heroSignalCurvePath");
+    this.fieldEl = $("#heroSignalField");
+
+    if (this.handle) {
+      this.handle.addEventListener("pointerdown", (e) => this.onPointerDown(e));
+      window.addEventListener("pointermove", (e) => this.onPointerMove(e));
+      window.addEventListener("pointerup", () => this.onPointerUp());
+      window.addEventListener("pointercancel", () => this.onPointerUp());
+
+      this.handle.addEventListener("keydown", (e) => {
+        if (this.completed) return;
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+          this.setDrag(this.dragX + (e.shiftKey ? 30 : 12));
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+          this.setDrag(this.dragX - (e.shiftKey ? 30 : 12));
+        } else if (e.key === "Enter" || e.key === " ") {
+          if (this.dragX >= this.maxDrag * 0.8) {
+            this.complete();
+          }
+        }
+      });
+    }
+  },
+
+  onPointerDown(e) {
+    if (this.completed) return;
+    this.isDragging = true;
+    this.handle.classList.add("is-dragging");
+    this.handle.setPointerCapture?.(e.pointerId);
+    hintController.notifyProgress();
+  },
+
+  onPointerMove(e) {
+    if (!this.isDragging || this.completed || !this.track) return;
+    const rect = this.track.getBoundingClientRect();
+    const x = e.clientX - rect.left - 28;
+    this.setDrag(x);
+  },
+
+  setDrag(val) {
+    if (!this.track) return;
+    const trackWidth = this.track.clientWidth - 64;
+    this.maxDrag = Math.max(100, trackWidth);
+    this.dragX = clamp(val, 0, this.maxDrag);
+
+    const ratio = (this.maxDrag - this.dragX) / this.maxDrag;
+    const distValue = Math.round(ratio * 100);
+
+    this.handle.style.setProperty("--drag-x", `${this.dragX}px`);
+    if (this.distanceEl) this.distanceEl.textContent = String(distValue);
+
+    if (this.beamEl) {
+      this.beamEl.style.width = `${this.dragX}px`;
+    }
+
+    if (this.curvePath) {
+      const midX = 31 + this.dragX / 2;
+      const heightOffset = 31 - Math.sin((this.dragX / this.maxDrag) * Math.PI) * 18;
+      this.curvePath.setAttribute("d", `M 31,31 Q ${midX},${heightOffset} ${31 + this.dragX},31`);
+    }
+
+    if (this.fieldEl) {
+      if (ratio <= 0.25) {
+        this.fieldEl.classList.add("is-captured");
+      } else {
+        this.fieldEl.classList.remove("is-captured");
+      }
+    }
+
+    if (this.dragX >= this.maxDrag * 0.94) {
+      this.complete();
+    }
+  },
+
+  onPointerUp() {
+    this.isDragging = false;
+    if (this.handle) this.handle.classList.remove("is-dragging");
+  },
+
+  complete() {
+    if (this.completed) return;
+    this.completed = true;
+    this.isDragging = false;
+    this.dragX = this.maxDrag;
+    this.setDrag(this.maxDrag);
+
+    const alignRoot = $("#heroSignalAlign");
+    if (alignRoot) alignRoot.classList.add("is-complete");
+
+    soundSystem.playInterface();
+    announce("Signals connected. Stabilizing channel.");
+
+    window.setTimeout(() => {
+      sceneManager.advanceTo("connection");
+    }, 850);
+  },
+
+  enter() {},
+  exit() {
+    this.isDragging = false;
+  },
+  reset() {
+    this.completed = false;
+    this.isDragging = false;
+    this.dragX = 0;
+    if (this.handle) {
+      this.handle.style.setProperty("--drag-x", "0px");
+      this.handle.classList.remove("is-dragging");
+    }
+    const alignRoot = $("#heroSignalAlign");
+    if (alignRoot) alignRoot.classList.remove("is-complete");
+    if (this.distanceEl) this.distanceEl.textContent = "100";
   }
-}
+};
 
-function setupConnection() {
-  const panel = $("#syncPanel");
-  const button = $("#syncButton");
-  const value = $("#syncValue");
-  const line = $("#syncLine");
-  const status = $("#syncStatus");
-  const message = $("#syncMessage");
-  connectionHold = createHoldInteraction(button, {
-    duration: 1800,
-    onProgress: (progress) => {
-      const amount = Math.round(progress * 100);
-      value.textContent = String(amount).padStart(2, "0");
-      line.style.width = `${amount}%`;
-      status.textContent = amount < 34 ? "SEARCHING" : amount < 72 ? "SIGNAL FOUND" : "FREQUENCY MATCHED";
-    },
-    onComplete: () => {
-      panel.classList.add("is-complete");
-      status.textContent = "CONNECTION ESTABLISHED";
-      message.textContent = siteConfig.syncMessage;
-      button.querySelector("span").textContent = "SIGNALS CONNECTED";
-      announce("Signal connection complete.");
-      playInterfaceSound();
-      window.setTimeout(() => sceneManager.advanceTo("records"), reduceMotion.matches ? 40 : 750);
+/* --------------------------------------------------------------------------
+   SCENE MODULE 2: CONNECTION (TUNE)
+   -------------------------------------------------------------------------- */
+const connectionScene = {
+  dial: null,
+  needle: null,
+  syncValEl: null,
+  syncMsgEl: null,
+  freqEl: null,
+  angle: 0,
+  targetAngle: 135,
+  isTuning: false,
+  lockTimer: null,
+  completed: false,
+
+  init() {
+    this.dial = $("#connectionDial");
+    this.needle = $("#connectionNeedle");
+    this.syncValEl = $("#syncValue");
+    this.syncMsgEl = $("#syncMessage");
+    this.freqEl = $("#connectionFrequency");
+
+    if (this.dial) {
+      this.dial.addEventListener("pointerdown", (e) => this.onStart(e));
+      window.addEventListener("pointermove", (e) => this.onMove(e));
+      window.addEventListener("pointerup", () => this.onEnd());
+      window.addEventListener("pointercancel", () => this.onEnd());
+
+      this.dial.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        this.updateAngle(this.angle + (e.deltaY > 0 ? 6 : -6));
+      }, { passive: false });
+
+      this.dial.addEventListener("keydown", (e) => {
+        if (this.completed) return;
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+          this.updateAngle(this.angle + (e.shiftKey ? 15 : 4));
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+          this.updateAngle(this.angle - (e.shiftKey ? 15 : 4));
+        } else if (e.key === "Home") {
+          this.updateAngle(0);
+        } else if (e.key === "End") {
+          this.updateAngle(360);
+        }
+      });
     }
-  });
-}
+  },
 
-function showRecord(index) {
-  const record = siteConfig.records[index];
-  if (!record) return;
-  sceneManager.state.recordIndex = index;
-  $("#recordCounter").textContent = `RECORD ${String(index + 1).padStart(2, "0")} / ${String(siteConfig.records.length).padStart(2, "0")}`;
-  $("#recordCode").textContent = record.code;
-  $("#recordNumber").textContent = String(index + 1).padStart(2, "0");
-  $("#recordTitle").textContent = record.title;
-  $("#recordStatus").textContent = "PERSONAL RECORD READY";
-  $("#recordCard")?.classList.remove("is-decrypting");
-  decryptText($("#recordText"), record.text);
-  $("#recordActionLabel").textContent = index === siteConfig.records.length - 1 ? "SWIPE TO COMPLETE THE MEMORY ARCHIVE" : "SWIPE TO DECRYPT THIS MEMORY";
-  recordDrag?.reset();
-  announce(`Personal record ${index + 1} of ${siteConfig.records.length}.`);
-}
+  onStart(e) {
+    if (this.completed) return;
+    this.isTuning = true;
+    this.dial.classList.add("is-tuning");
+    this.dial.setPointerCapture?.(e.pointerId);
+    this.onMove(e);
+    hintController.notifyProgress();
+  },
 
-function setupRecords() {
-  const track = $("#recordTrack");
-  const handle = $("#recordHandle");
-  recordDrag = createHorizontalDrag({
-    track,
-    handle,
-    threshold: .84,
-    onProgress: (progress) => {
-      $("#recordTrackFill")?.style.setProperty("width", `${progress * 100}%`);
-      $("#recordScan")?.style.setProperty("width", `${progress * 100}%`);
-    },
-    onComplete: () => {
-      $("#recordCard")?.classList.add("is-decrypting");
-      $("#recordStatus").textContent = "RECORD DECRYPTED";
-      playInterfaceSound();
-      const next = sceneManager.state.recordIndex + 1;
-      window.setTimeout(() => {
-        if (next < siteConfig.records.length) showRecord(next);
-        else sceneManager.advanceTo("timeline");
-      }, reduceMotion.matches ? 40 : 650);
+  onMove(e) {
+    if (!this.isTuning || this.completed || !this.dial) return;
+    const rect = this.dial.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const radians = Math.atan2(e.clientY - cy, e.clientX - cx);
+    let degrees = radians * (180 / Math.PI) + 90;
+    if (degrees < 0) degrees += 360;
+    this.updateAngle(degrees);
+  },
+
+  updateAngle(deg) {
+    this.angle = (deg % 360 + 360) % 360;
+    if (this.needle) this.needle.style.setProperty("--tuner-angle", `${this.angle}deg`);
+    if (this.dial) this.dial.setAttribute("aria-valuenow", String(Math.round(this.angle)));
+
+    const diff = Math.abs(this.angle - this.targetAngle);
+    const error = Math.min(180, diff > 180 ? 360 - diff : diff);
+    const stability = Math.max(0, Math.round(100 - (error / 90) * 100));
+
+    if (this.syncValEl) this.syncValEl.textContent = String(stability).padStart(2, "0");
+    if (this.freqEl) this.freqEl.textContent = `${(100 + (this.angle * 0.3)).toFixed(2)} MHz`;
+
+    const syncPanel = $("#syncPanel");
+    if (syncPanel) {
+      syncPanel.style.setProperty("--frequency-error", String(error));
+      syncPanel.style.setProperty("--signal-stability", String(stability));
     }
-  });
-}
 
-function showTimeline(index) {
-  const item = siteConfig.timeline[index];
-  if (!item) return;
-  sceneManager.state.timelineIndex = index;
-  $("#timelineCounter").textContent = `MILESTONE ${String(index + 1).padStart(2, "0")} / ${String(siteConfig.timeline.length).padStart(2, "0")}`;
-  $("#timelinePhase").textContent = item.phase;
-  $("#timelineTitle").textContent = item.title;
-  decryptText($("#timelineText"), item.text);
-  $("#timelineActionLabel").textContent = index === siteConfig.timeline.length - 1 ? "TRACE THE FINAL MEMORY PATH" : "TRACE THE MEMORY PATH";
-  timelineDrag?.reset();
-  announce(`Signal history ${index + 1} of ${siteConfig.timeline.length}.`);
-}
-
-function setupTimeline() {
-  const track = $("#timelineTrack");
-  const handle = $("#timelineHandle");
-  timelineDrag = createHorizontalDrag({
-    track,
-    handle,
-    threshold: .84,
-    onProgress: (progress) => {
-      $("#timelineTrackFill")?.style.setProperty("width", `${progress * 100}%`);
-    },
-    onComplete: () => {
-      playInterfaceSound();
-      const next = sceneManager.state.timelineIndex + 1;
-      window.setTimeout(() => {
-        if (next < siteConfig.timeline.length) showTimeline(next);
-        else sceneManager.advanceTo("barrier");
-      }, reduceMotion.matches ? 40 : 650);
-    }
-  });
-}
-
-function resetBarrierView() {
-  const scene = $('.scene[data-scene="barrier"]');
-  scene?.classList.remove("is-open");
-  $("#barrierNumber").textContent = "100";
-  $("#barrierBar").style.width = "0%";
-  const button = $("#barrierButton");
-  if (button) button.querySelector("span").textContent = "HOLD TO OPEN THE BARRIER";
-}
-
-function setupBarrier() {
-  const scene = $('.scene[data-scene="barrier"]');
-  const button = $("#barrierButton");
-  barrierHold = createHoldInteraction(button, {
-    duration: 2100,
-    onProgress: (progress) => {
-      $("#barrierNumber").textContent = String(Math.max(0, 100 - Math.round(progress * 100))).padStart(2, "0");
-      $("#barrierBar").style.width = `${progress * 100}%`;
-    },
-    onComplete: () => {
-      scene?.classList.add("is-open");
-      button.querySelector("span").textContent = "BARRIER OPENED";
-      announce("The barrier is open. The private message can be recovered.");
-      playInterfaceSound();
-      window.setTimeout(() => sceneManager.advanceTo("letter"), reduceMotion.matches ? 40 : 850);
-    }
-  });
-}
-
-function showLetterFragment(index) {
-  const text = siteConfig.letter[index];
-  if (!text) return;
-  sceneManager.state.letterIndex = index;
-  const copy = $("#letterCopy");
-  copy.innerHTML = "";
-  const paragraph = document.createElement("p");
-  paragraph.textContent = text;
-  copy.append(paragraph);
-  requestAnimationFrame(() => paragraph.classList.add("is-visible"));
-  $("#letterCounter").textContent = `MESSAGE FRAGMENT ${String(index + 1).padStart(2, "0")} / ${String(siteConfig.letter.length).padStart(2, "0")}`;
-  $("#letterActionLabel").textContent = index === siteConfig.letter.length - 1 ? "HOLD TO OPEN THE RESPONSE CHANNEL" : "HOLD TO RECOVER NEXT FRAGMENT";
-  const sealNumber = $("#letterSeal .message-seal__rings b");
-  if (sealNumber) sealNumber.textContent = String(index + 1).padStart(2, "0");
-  letterHold?.reset();
-  announce(`Private message fragment ${index + 1} of ${siteConfig.letter.length}.`);
-}
-
-function setupLetter() {
-  const seal = $("#letterSeal");
-  letterHold = createHoldInteraction(seal, {
-    duration: 1150,
-    onComplete: () => {
-      playInterfaceSound();
-      const next = sceneManager.state.letterIndex + 1;
-      window.setTimeout(() => {
-        if (next < siteConfig.letter.length) showLetterFragment(next);
-        else sceneManager.advanceTo("response");
-      }, reduceMotion.matches ? 40 : 520);
-    }
-  });
-}
-
-function setupResponses() {
-  const options = $("#responseOptions");
-  const feedback = $("#responseFeedback");
-  const change = $("#changeResponse");
-  const noButton = $("#noResponseButton");
-  const noHint = $("#noHint");
-  if (!options || !feedback || !change || !noButton || !noHint) return;
-
-  const maxDodges = reduceMotion.matches ? 0 : 2;
-  let noDodges = 0;
-
-  const resetNoPosition = () => {
-    noButton.style.removeProperty("left");
-    noButton.style.removeProperty("top");
-    noButton.classList.remove("is-drifting", "is-catchable");
-    noHint.textContent = "THE ‘NO’ SIGNAL MAY DRIFT TWICE, THEN IT WILL STAY STILL—THE CHOICE IS ALWAYS YOURS.";
-  };
-
-  const dodgeNo = (event) => {
-    if (noDodges >= maxDodges) return false;
-    event?.preventDefault();
-    noDodges += 1;
-    const maxX = Math.max(0, options.clientWidth - noButton.offsetWidth);
-    const maxY = Math.max(0, options.clientHeight - noButton.offsetHeight);
-    const x = noDodges === 1 ? 0 : maxX;
-    const y = noDodges === 1 ? maxY : Math.max(0, maxY * .72);
-    noButton.style.left = `${x}px`;
-    noButton.style.top = `${y}px`;
-    noButton.classList.add("is-drifting");
-    feedback.textContent = noDodges === 1
-      ? "SIGNAL INTERFERENCE / THE ‘NO’ SIGNAL DRIFTED AWAY."
-      : "SIGNAL SETTLED / ‘NO’ WILL NOW STAY STILL IF THAT IS YOUR CHOICE.";
-    if (noDodges >= maxDodges) {
-      noButton.classList.remove("is-drifting");
-      noButton.classList.add("is-catchable");
-      noHint.textContent = "THE SIGNAL HAS SETTLED. BOTH ANSWERS ARE NOW FULLY SELECTABLE.";
-    }
-    playInterfaceSound();
-    return true;
-  };
-
-  const apply = (key) => {
-    $$("button[data-response]", options).forEach((button) => {
-      const selected = button.dataset.response === key;
-      button.classList.toggle("is-selected", selected);
-      button.setAttribute("aria-pressed", String(selected));
-    });
-    feedback.textContent = siteConfig.responses[key] || "RESPONSE CHANNEL / WAITING";
-    change.hidden = !key;
-  };
-
-  options.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-response]");
-    if (!button) return;
-    const key = button.dataset.response;
-    if (key === "no" && event.detail !== 0 && dodgeNo(event)) return;
-    localStorage.setItem("reiSignalResponse", key);
-    apply(key);
-    playInterfaceSound();
-    if (key === "yes") {
-      announce("Both heart signals matched. A private reply channel is opening.");
-      window.setTimeout(() => sceneManager.advanceTo("reply"), reduceMotion.matches ? 30 : 700);
+    if (stability >= 94) {
+      if (this.dial) this.dial.classList.add("is-matched");
+      if (!this.lockTimer) {
+        this.lockTimer = window.setTimeout(() => this.complete(), 480);
+      }
     } else {
-      announce("Maureen's answer was received and respected.");
+      if (this.dial) this.dial.classList.remove("is-matched");
+      if (this.lockTimer) {
+        clearTimeout(this.lockTimer);
+        this.lockTimer = null;
+      }
     }
-  });
+  },
 
-  noButton.addEventListener("pointerenter", (event) => {
-    if (event.pointerType !== "touch") dodgeNo(event);
-  });
-  noButton.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "touch") dodgeNo(event);
-  });
+  onEnd() {
+    this.isTuning = false;
+    if (this.dial) this.dial.classList.remove("is-tuning");
+  },
 
-  change.addEventListener("click", () => {
-    localStorage.removeItem("reiSignalResponse");
-    apply("");
-    noDodges = 0;
-    resetNoPosition();
-  });
-  apply(localStorage.getItem("reiSignalResponse") || "");
-  resetNoPosition();
-}
+  complete() {
+    if (this.completed) return;
+    this.completed = true;
+    this.isTuning = false;
 
-function setupWhatsAppReply() {
-  const textarea = $("#replyMessage");
-  const link = $("#whatsappReply");
-  if (!textarea || !link) return;
+    const syncPanel = $("#syncPanel");
+    if (syncPanel) syncPanel.classList.add("is-complete");
+    if (this.syncMsgEl) this.syncMsgEl.textContent = siteConfig.syncMessage;
 
-  const updateLink = () => {
-    const customReply = textarea.value.trim();
-    const introduction = `Hi ${siteConfig.senderName}, I just finished reading your message. Yes, I would be happy to get to know you more.`;
-    const message = customReply
-      ? `${introduction}\n\nWhat I want to tell you is:\n${customReply}`
-      : `${introduction}\n\nYour message reached me, and I want to tell you more about how it made me feel.`;
-    const number = siteConfig.whatsappNumber.replace(/\D/g, "");
-    link.href = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-    link.setAttribute("aria-label", `Reply to ${siteConfig.senderName} on WhatsApp`);
+    soundSystem.playInterface();
+    announce(siteConfig.syncMessage);
+
+    window.setTimeout(() => {
+      sceneManager.advanceTo("records");
+    }, 850);
+  },
+
+  enter() {},
+  exit() {
+    this.isTuning = false;
+    if (this.lockTimer) clearTimeout(this.lockTimer);
+  },
+  reset() {
+    this.completed = false;
+    this.isTuning = false;
+    this.angle = 0;
+    this.updateAngle(0);
+    const syncPanel = $("#syncPanel");
+    if (syncPanel) syncPanel.classList.remove("is-complete");
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULE 3: RECORDS (SEARCH)
+   -------------------------------------------------------------------------- */
+const recordsScene = {
+  radar: null,
+  lens: null,
+  echoes: [],
+  recovered: new Set(),
+  currentIndex: 0,
+  lensX: 50,
+  lensY: 50,
+  isScanning: false,
+
+  init() {
+    this.radar = $("#recordRadar");
+    this.lens = $("#recordLens");
+    this.echoes = $$(".radar__echo");
+
+    if (this.radar) {
+      this.radar.addEventListener("pointerdown", (e) => this.onPointerDown(e));
+      window.addEventListener("pointermove", (e) => this.onPointerMove(e));
+      window.addEventListener("pointerup", () => { this.isScanning = false; });
+    }
+
+    this.echoes.forEach((echo) => {
+      echo.addEventListener("click", () => {
+        const idx = parseInt(echo.dataset.recordIndex, 10);
+        this.selectEcho(idx);
+      });
+    });
+
+    const continueBtn = $("#recordArchiveContinue");
+    if (continueBtn) {
+      continueBtn.addEventListener("click", () => {
+        sceneManager.advanceTo("timeline");
+      });
+    }
+
+    this.positionEchoes();
+  },
+
+  positionEchoes() {
+    const coords = [
+      { x: 25, y: 35 },
+      { x: 45, y: 70 },
+      { x: 60, y: 30 },
+      { x: 75, y: 65 },
+      { x: 85, y: 40 }
+    ];
+    this.echoes.forEach((echo, idx) => {
+      const pt = coords[idx] || { x: 50, y: 50 };
+      echo.style.left = `${pt.x}%`;
+      echo.style.top = `${pt.y}%`;
+    });
+  },
+
+  onPointerDown(e) {
+    this.isScanning = true;
+    this.onPointerMove(e);
+    hintController.notifyProgress();
+  },
+
+  onPointerMove(e) {
+    if (!this.isScanning || !this.radar) return;
+    const rect = this.radar.getBoundingClientRect();
+    this.lensX = clamp(((e.clientX - rect.left) / rect.width) * 100, 5, 95);
+    this.lensY = clamp(((e.clientY - rect.top) / rect.height) * 100, 5, 95);
+
+    if (this.lens) {
+      this.lens.style.left = `${this.lensX}%`;
+      this.lens.style.top = `${this.lensY}%`;
+    }
+
+    this.checkProximity();
+  },
+
+  checkProximity() {
+    const coords = [
+      { x: 25, y: 35 },
+      { x: 45, y: 70 },
+      { x: 60, y: 30 },
+      { x: 75, y: 65 },
+      { x: 85, y: 40 }
+    ];
+
+    coords.forEach((pt, idx) => {
+      const dist = Math.hypot(this.lensX - pt.x, this.lensY - pt.y);
+      const echo = this.echoes[idx];
+      if (!echo) return;
+
+      if (dist <= 14) {
+        echo.classList.add("is-found");
+        if (!this.recovered.has(idx)) {
+          this.recoverEcho(idx);
+        }
+      }
+    });
+  },
+
+  recoverEcho(idx) {
+    this.recovered.add(idx);
+    const echo = this.echoes[idx];
+    if (echo) echo.classList.add("is-decrypted");
+
+    this.selectEcho(idx);
+    soundSystem.playInterface();
+
+    const countEl = $("#recordArchiveCount");
+    if (countEl) countEl.textContent = `${this.recovered.size} / 5`;
+
+    if (this.recovered.size === 5) {
+      const continueBtn = $("#recordArchiveContinue");
+      if (continueBtn) continueBtn.hidden = false;
+      announce("All personal records recovered. Ready to proceed to timeline.");
+    }
+  },
+
+  selectEcho(idx) {
+    this.currentIndex = idx;
+    this.echoes.forEach((e, i) => e.classList.toggle("is-current", i === idx));
+
+    const rec = siteConfig.records[idx];
+    if (!rec) return;
+
+    const numEl = $("#recordNumber");
+    const codeEl = $("#recordCode");
+    const titleEl = $("#recordTitle");
+    const textEl = $("#recordText");
+    const counterEl = $("#recordCounter");
+    const card = $("#recordCard");
+
+    if (numEl) numEl.textContent = String(idx + 1).padStart(2, "0");
+    if (codeEl) codeEl.textContent = rec.code;
+    if (counterEl) counterEl.textContent = `RECORD 0${idx + 1} / 05`;
+    if (titleEl) titleEl.textContent = rec.title;
+
+    if (card) {
+      card.classList.add("is-decrypting");
+      window.setTimeout(() => card.classList.remove("is-decrypting"), 500);
+    }
+    if (textEl) decryptText(textEl, rec.text);
+  },
+
+  enter() {
+    this.selectEcho(0);
+  },
+  exit() {
+    this.isScanning = false;
+  },
+  reset() {
+    this.recovered.clear();
+    this.echoes.forEach(e => {
+      e.classList.remove("is-found", "is-current", "is-decrypted");
+    });
+    const continueBtn = $("#recordArchiveContinue");
+    if (continueBtn) continueBtn.hidden = true;
+    const countEl = $("#recordArchiveCount");
+    if (countEl) countEl.textContent = "0 / 5";
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULE 4: TIMELINE (TRAVEL)
+   -------------------------------------------------------------------------- */
+const timelineScene = {
+  scrollRegion: null,
+  checkpoints: [],
+  progressPath: null,
+  pulseDot: null,
+  continueBtn: null,
+  currentMilestone: 0,
+
+  init() {
+    this.scrollRegion = $("#timelineScrollRegion");
+    this.checkpoints = $$(".timeline-checkpoint");
+    this.progressPath = $("#timelineProgressPath");
+    this.pulseDot = $("#timelinePulse");
+    this.continueBtn = $("#timelineFinalContinue");
+
+    if (this.scrollRegion) {
+      this.scrollRegion.addEventListener("scroll", () => this.onScroll(), { passive: true });
+    }
+
+    this.checkpoints.forEach((cp, idx) => {
+      const btn = cp.querySelector("button");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          this.setMilestone(idx);
+        });
+      }
+    });
+
+    if (this.continueBtn) {
+      this.continueBtn.addEventListener("click", () => {
+        sceneManager.advanceTo("barrier");
+      });
+    }
+  },
+
+  onScroll() {
+    if (!this.scrollRegion) return;
+    hintController.notifyProgress();
+    const maxScroll = this.scrollRegion.scrollHeight - this.scrollRegion.clientHeight;
+    const ratio = maxScroll > 0 ? this.scrollRegion.scrollTop / maxScroll : 0;
+
+    const idx = clamp(Math.floor(ratio * 5), 0, 4);
+    if (idx !== this.currentMilestone) {
+      this.setMilestone(idx);
+    }
+
+    if (this.progressPath) {
+      this.progressPath.style.strokeDashoffset = `${1000 - (ratio * 1000)}`;
+    }
+    if (this.pulseDot) {
+      this.pulseDot.setAttribute("cy", String(20 + ratio * 560));
+    }
+
+    if (ratio >= 0.92 && this.continueBtn) {
+      this.continueBtn.hidden = false;
+    }
+  },
+
+  setMilestone(idx) {
+    this.currentMilestone = idx;
+    this.checkpoints.forEach((cp, i) => {
+      cp.classList.toggle("is-current", i === idx);
+      cp.classList.toggle("is-completed", i < idx);
+    });
+
+    const data = siteConfig.timeline[idx];
+    if (!data) return;
+
+    const phaseEl = $("#timelinePhase");
+    const titleEl = $("#timelineTitle");
+    const textEl = $("#timelineText");
+    const counterEl = $("#timelineCounter");
+
+    if (phaseEl) phaseEl.textContent = data.phase;
+    if (titleEl) titleEl.textContent = data.title;
+    if (counterEl) counterEl.textContent = `MILESTONE 0${idx + 1} / 05`;
+    if (textEl) decryptText(textEl, data.text);
+
+    soundSystem.playInterface();
+  },
+
+  enter() {
+    this.setMilestone(0);
+  },
+  exit() {},
+  reset() {
+    this.currentMilestone = 0;
+    if (this.scrollRegion) this.scrollRegion.scrollTop = 0;
+    if (this.continueBtn) this.continueBtn.hidden = true;
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULE 5: BARRIER (RESONATE)
+   -------------------------------------------------------------------------- */
+const barrierScene = {
+  button: null,
+  visual: null,
+  numberEl: null,
+  barEl: null,
+  feedbackEl: null,
+  pulseEl: null,
+  pulsePhase: 0,
+  loopTimer: null,
+  fieldVal: 100,
+  windowTolerance: 0.18,
+  completed: false,
+
+  init() {
+    this.button = $("#barrierButton");
+    this.visual = $("#barrierVisual");
+    this.numberEl = $("#barrierNumber");
+    this.barEl = $("#barrierBar");
+    this.feedbackEl = $("#barrierFeedback");
+    this.pulseEl = $("#barrierPulse");
+
+    if (this.button) {
+      this.button.addEventListener("click", () => this.releasePulse());
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (sceneManager.currentScene === "barrier" && !this.completed) {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          this.releasePulse();
+        }
+      }
+    });
+  },
+
+  startLoop() {
+    clearInterval(this.loopTimer);
+    this.loopTimer = setInterval(() => {
+      this.pulsePhase = (this.pulsePhase + 0.02) % 1;
+      if (this.pulseEl) {
+        this.pulseEl.classList.add("is-traveling");
+      }
+    }, 25);
+  },
+
+  releasePulse() {
+    if (this.completed) return;
+    hintController.notifyProgress();
+    soundSystem.playInterface();
+
+    const target = 0.5;
+    const diff = Math.abs(this.pulsePhase - target);
+
+    if (diff <= this.windowTolerance) {
+      this.complete();
+    } else {
+      if (this.pulsePhase < target) {
+        if (this.feedbackEl) this.feedbackEl.textContent = "EARLY PULSE / ADJUST TIMING";
+      } else {
+        if (this.feedbackEl) this.feedbackEl.textContent = "LATE PULSE / RELEASE WHEN WINDOW GLOWS";
+      }
+      this.windowTolerance = Math.min(0.35, this.windowTolerance + 0.03);
+    }
+  },
+
+  complete() {
+    if (this.completed) return;
+    this.completed = true;
+    clearInterval(this.loopTimer);
+
+    if (this.feedbackEl) this.feedbackEl.textContent = "RESONANCE SYNCHRONIZED / BARRIER BREACHED";
+    if (this.visual) this.visual.classList.add("is-open");
+
+    let step = 0;
+    const steps = [100, 67, 33, 0];
+    const countInterval = setInterval(() => {
+      step++;
+      const val = steps[step] ?? 0;
+      if (this.numberEl) this.numberEl.textContent = String(val);
+      if (this.barEl) this.barEl.style.width = `${val}%`;
+
+      if (step >= steps.length - 1) {
+        clearInterval(countInterval);
+        announce("Emotional barrier opened. Sincere message ready.");
+        window.setTimeout(() => {
+          sceneManager.advanceTo("letter");
+        }, 650);
+      }
+    }, 200);
+  },
+
+  enter() {
+    this.startLoop();
+  },
+  exit() {
+    clearInterval(this.loopTimer);
+  },
+  reset() {
+    this.completed = false;
+    this.pulsePhase = 0;
+    this.windowTolerance = 0.18;
+    if (this.visual) this.visual.classList.remove("is-open");
+    if (this.numberEl) this.numberEl.textContent = "100";
+    if (this.barEl) this.barEl.style.width = "100%";
+    if (this.feedbackEl) this.feedbackEl.textContent = "PULSE READY / TIMING CRITICAL";
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULE 6: LETTER (RECONSTRUCT)
+   -------------------------------------------------------------------------- */
+const letterScene = {
+  field: null,
+  orb: null,
+  fragments: [],
+  statusEl: null,
+  counterEl: null,
+  copyEl: null,
+  sealBtn: null,
+  orbX: 30,
+  orbY: 50,
+  placedCount: 0,
+  isDragging: false,
+
+  init() {
+    this.field = $("#letterReconstructField");
+    this.orb = $("#letterOrb");
+    this.fragments = $$(".reconstruct__fragment");
+    this.statusEl = $("#letterReconstructStatus");
+    this.counterEl = $("#letterCounter");
+    this.copyEl = $("#letterCopy");
+    this.sealBtn = $("#letterSeal");
+
+    if (this.field) {
+      this.field.addEventListener("pointerdown", (e) => this.onPointerDown(e));
+      window.addEventListener("pointermove", (e) => this.onPointerMove(e));
+      window.addEventListener("pointerup", () => { this.isDragging = false; });
+    }
+
+    if (this.sealBtn) {
+      this.sealBtn.addEventListener("click", () => {
+        sceneManager.advanceTo("response");
+      });
+    }
+  },
+
+  onPointerDown(e) {
+    this.isDragging = true;
+    this.onPointerMove(e);
+    hintController.notifyProgress();
+  },
+
+  onPointerMove(e) {
+    if (!this.isDragging || !this.field) return;
+    const rect = this.field.getBoundingClientRect();
+    this.orbX = clamp(((e.clientX - rect.left) / rect.width) * 100, 5, 95);
+    this.orbY = clamp(((e.clientY - rect.top) / rect.height) * 100, 5, 95);
+
+    if (this.orb) {
+      this.orb.style.left = `${this.orbX}%`;
+      this.orb.style.top = `${this.orbY}%`;
+    }
+
+    this.checkFragments();
+  },
+
+  checkFragments() {
+    const coords = [
+      { x: 15, y: 25 },
+      { x: 55, y: 55 },
+      { x: 80, y: 20 }
+    ];
+
+    coords.forEach((pt, idx) => {
+      const frag = this.fragments[idx];
+      if (!frag || frag.classList.contains("is-placed")) return;
+
+      const dist = Math.hypot(this.orbX - pt.x, this.orbY - pt.y);
+      if (dist <= 18) {
+        frag.classList.add("is-attracted");
+        if (this.orbX >= 75) {
+          this.placeFragment(idx);
+        }
+      }
+    });
+  },
+
+  placeFragment(idx) {
+    const frag = this.fragments[idx];
+    if (!frag || frag.classList.contains("is-placed")) return;
+
+    frag.classList.add("is-placed");
+    frag.classList.remove("is-attracted");
+    this.placedCount++;
+
+    soundSystem.playInterface();
+    this.showFragmentText(this.placedCount - 1);
+
+    if (this.counterEl) {
+      this.counterEl.textContent = `MESSAGE FRAGMENT 0${this.placedCount} / 03`;
+    }
+
+    if (this.placedCount >= 3) {
+      if (this.statusEl) this.statusEl.textContent = "LETTER RESTORED / SEAL READY";
+      if (this.sealBtn) {
+        this.sealBtn.disabled = false;
+        this.sealBtn.hidden = false;
+      }
+      announce("Letter completely reconstructed. Open response channel.");
+    }
+  },
+
+  showFragmentText(idx) {
+    const text = siteConfig.letter[idx];
+    if (!text || !this.copyEl) return;
+
+    let p = this.copyEl.children[idx];
+    if (!p) {
+      p = document.createElement("p");
+      this.copyEl.appendChild(p);
+    }
+    p.classList.add("is-visible");
+    decryptText(p, text);
+  },
+
+  enter() {
+    if (this.copyEl) this.copyEl.innerHTML = "";
+    this.placedCount = 0;
+    this.placeFragment(0);
+  },
+  exit() {
+    this.isDragging = false;
+  },
+  reset() {
+    this.placedCount = 0;
+    this.fragments.forEach(f => f.classList.remove("is-attracted", "is-placed"));
+    if (this.sealBtn) {
+      this.sealBtn.disabled = true;
+      this.sealBtn.hidden = true;
+    }
+    if (this.copyEl) this.copyEl.innerHTML = "";
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULE 7: RESPONSE (CHOOSE)
+   -------------------------------------------------------------------------- */
+const responseScene = {
+  options: null,
+  noBtn: null,
+  feedbackEl: null,
+  changeBtn: null,
+  driftCount: 0,
+
+  init() {
+    this.options = $("#responseOptions");
+    this.noBtn = $("#noResponseButton");
+    this.feedbackEl = $("#responseFeedback");
+    this.changeBtn = $("#changeResponse");
+
+    const yesBtn = $('[data-response="yes"]');
+    if (yesBtn) {
+      yesBtn.addEventListener("click", () => this.selectResponse("yes"));
+    }
+
+    if (this.noBtn) {
+      const evade = () => {
+        if (this.driftCount < 2) {
+          this.driftCount++;
+          this.noBtn.classList.add("is-drifting");
+          this.noBtn.style.top = `${this.driftCount * 36}px`;
+          if (this.driftCount === 2) {
+            this.noBtn.classList.add("is-catchable");
+          }
+        }
+      };
+      this.noBtn.addEventListener("mouseenter", evade);
+      this.noBtn.addEventListener("touchstart", evade, { passive: true });
+      this.noBtn.addEventListener("click", () => this.selectResponse("no"));
+    }
+
+    if (this.changeBtn) {
+      this.changeBtn.addEventListener("click", () => {
+        this.changeBtn.hidden = true;
+        $$(".response-options button").forEach(b => b.classList.remove("is-selected"));
+        if (this.feedbackEl) this.feedbackEl.textContent = "RESPONSE CHANNEL / WAITING";
+      });
+    }
+  },
+
+  selectResponse(choice) {
+    const msg = siteConfig.responses[choice];
+    if (this.feedbackEl) this.feedbackEl.textContent = msg;
+    if (this.changeBtn) this.changeBtn.hidden = false;
+
+    $$(".response-options button").forEach(b => {
+      b.classList.toggle("is-selected", b.dataset.response === choice);
+    });
+
+    soundSystem.playInterface();
+    announce(msg);
+
+    try {
+      localStorage.setItem("rei_response", choice);
+    } catch (e) {}
+
+    window.setTimeout(() => {
+      sceneManager.advanceTo("reply");
+    }, 1200);
+  },
+
+  enter() {},
+  exit() {},
+  reset() {
+    this.driftCount = 0;
+    if (this.noBtn) {
+      this.noBtn.style.top = "";
+      this.noBtn.classList.remove("is-drifting", "is-catchable");
+    }
+  }
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULE 8: REPLY (SEND / WHATSAPP)
+   -------------------------------------------------------------------------- */
+const replyScene = {
+  textarea: null,
+  whatsappBtn: null,
+  replayBtn: null,
+
+  init() {
+    this.textarea = $("#replyMessage");
+    this.whatsappBtn = $("#whatsappReply");
+    this.replayBtn = $("#replayButton");
+
+    if (this.textarea && this.whatsappBtn) {
+      this.textarea.addEventListener("input", () => this.updateLink());
+    }
+
+    if (this.replayBtn) {
+      this.replayBtn.addEventListener("click", () => this.replayAll());
+    }
+  },
+
+  updateLink() {
+    if (!this.whatsappBtn || !this.textarea) return;
+    const msg = this.textarea.value.trim() || `Halo ${siteConfig.senderName}, aku sudah menerima sinyalmu.`;
+    const encoded = encodeURIComponent(msg);
+    this.whatsappBtn.href = `https://wa.me/${siteConfig.whatsappNumber}?text=${encoded}`;
+  },
+
+  replayAll() {
+    soundSystem.playInterface();
+    Object.values(sceneModules).forEach(mod => {
+      if (mod.reset) mod.reset();
+    });
+    sceneManager.advanceTo("boot");
+  },
+
+  enter() {
+    this.updateLink();
+  },
+  exit() {},
+  reset() {}
+};
+
+/* --------------------------------------------------------------------------
+   SCENE MODULES MAP
+   -------------------------------------------------------------------------- */
+const sceneModules = {
+  boot: bootScene,
+  hero: heroScene,
+  connection: connectionScene,
+  records: recordsScene,
+  timeline: timelineScene,
+  barrier: barrierScene,
+  letter: letterScene,
+  response: responseScene,
+  reply: replyScene
+};
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE VIEWPORT & CANVAS BACKGROUND
+   -------------------------------------------------------------------------- */
+function setupAppHeight() {
+  const update = () => {
+    const height = window.visualViewport?.height || window.innerHeight;
+    document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
   };
-
-  textarea.addEventListener("input", updateLink);
-  link.addEventListener("click", updateLink);
-  updateLink();
-
-  $("#replayButton")?.addEventListener("click", () => {
-    sessionStorage.removeItem("reiSignalIntro");
-    sessionStorage.removeItem("reiSignalUnlocked");
-    localStorage.removeItem("reiSignalResponse");
-    location.hash = "";
-    location.reload();
-  });
-}
-
-function onSceneEntered(name) {
-  if (name === "boot") {
-    $("#enterButton").disabled = false;
-    bootHold?.reset();
-  }
-  if (name === "hero" && sceneManager.state.maxUnlocked > 0) {
-    $("#heroSignalAlign")?.classList.remove("is-complete");
-    heroDrag?.reset();
-  }
-  if (name === "connection" && sceneManager.state.maxUnlocked > 1) {
-    resetConnectionView();
-    connectionHold?.reset();
-  }
-  if (name === "records") showRecord(sceneManager.state.recordIndex);
-  if (name === "timeline") showTimeline(sceneManager.state.timelineIndex);
-  if (name === "barrier" && sceneManager.state.maxUnlocked > 4) {
-    resetBarrierView();
-    barrierHold?.reset();
-  }
-  if (name === "letter") showLetterFragment(sceneManager.state.letterIndex);
-}
-
-function setupHistory() {
-  window.addEventListener("popstate", () => {
-    if (sceneManager.state.transitioning) return;
-    const target = (location.hash || "").slice(1);
-    if (target === "boot" || !target) {
-      sceneManager.goTo("boot", { historyMode: "skip" });
-      return;
-    }
-    if (sceneManager.canEnter(target)) sceneManager.goTo(target, { historyMode: "skip" });
-  });
-}
-
-function bootstrapScene() {
-  sceneManager.buildPips();
-  const introSeen = sessionStorage.getItem("reiSignalIntro") === "seen";
-  const requested = (location.hash || "").slice(1);
-  let initial = "boot";
-  if (introSeen) {
-    if (sceneManager.canEnter(requested)) initial = requested;
-    else {
-      sceneManager.unlock("hero");
-      initial = "hero";
-    }
-  }
-  sceneManager.swap(initial);
-  sceneManager.state.current = initial;
-  sceneManager.updateChrome(initial);
-  history.replaceState({ scene: initial }, "", `#${initial}`);
-  onSceneEntered(initial);
+  update();
+  window.addEventListener("resize", update, { passive: true });
+  window.addEventListener("orientationchange", update, { passive: true });
+  window.visualViewport?.addEventListener("resize", update, { passive: true });
 }
 
 function setupAmbientCanvas() {
   const canvas = $("#ambientCanvas");
-  if (!canvas || reduceMotion.matches) return;
-  const context = canvas.getContext("2d");
-  if (!context) return;
-  let particles = [];
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
   let width = 0;
   let height = 0;
-  let frame = 0;
+  let particles = [];
 
   const resize = () => {
-    const ratio = Math.min(devicePixelRatio || 1, 1.5);
-    width = innerWidth;
-    height = window.visualViewport?.height || innerHeight;
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const count = coarsePointer.matches ? 16 : 38;
-    particles = Array.from({ length: count }, () => ({
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    particles = Array.from({ length: 28 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 1.7 + .4,
-      speed: Math.random() * .22 + .06,
-      drift: Math.random() * .14 - .07
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      size: Math.random() * 2 + 1,
+      alpha: Math.random() * 0.4 + 0.1
     }));
   };
 
-  const draw = () => {
-    if (document.hidden) return;
-    context.clearRect(0, 0, width, height);
-    context.fillStyle = "rgba(0, 159, 227, .42)";
-    particles.forEach((particle) => {
-      particle.y -= particle.speed;
-      particle.x += particle.drift;
-      if (particle.y < -5) {
-        particle.y = height + 5;
-        particle.x = Math.random() * width;
-      }
-      context.beginPath();
-      context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      context.fill();
+  resize();
+  window.addEventListener("resize", resize, { passive: true });
+
+  const render = () => {
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#009fe3";
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = width;
+      if (p.x > width) p.x = 0;
+      if (p.y < 0) p.y = height;
+      if (p.y > height) p.y = 0;
+      ctx.globalAlpha = p.alpha;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
     });
-    frame = requestAnimationFrame(draw);
+    requestAnimationFrame(render);
   };
 
-  window.addEventListener("resize", resize, { passive: true });
-  document.addEventListener("visibilitychange", () => {
-    cancelAnimationFrame(frame);
-    if (!document.hidden) draw();
-  });
-  resize();
-  draw();
+  if (!reduceMotion.matches) {
+    requestAnimationFrame(render);
+  }
 }
 
-function init() {
-  setupAppHeight();
+/* --------------------------------------------------------------------------
+   INITIALIZATION LIFECYCLE
+   -------------------------------------------------------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
   applyConfig();
-  setupAssetFallbacks();
-  setupAudio();
-  setupBoot();
-  setupHeroInteraction();
-  setupConnection();
-  setupRecords();
-  setupTimeline();
-  setupBarrier();
-  setupLetter();
-  setupResponses();
-  setupWhatsAppReply();
-  setupHistory();
-  setupAmbientCanvas();
-  bootstrapScene();
-}
+  inputModeTracker.init();
+  soundSystem.init();
+  sceneManager.init();
 
-document.addEventListener("DOMContentLoaded", init);
+  Object.values(sceneModules).forEach(mod => {
+    if (mod.init) mod.init();
+  });
+
+  setupAmbientCanvas();
+});
