@@ -421,38 +421,36 @@ const sceneManager = {
 
         console.warn(`[TransitionSystem] No semantic ID found for scene: "${nextScene}". Neutral transition used.`);
 
+        // Collapse slot so it takes no space in the stack (no broken-image icon)
+        if (transitionSlot) transitionSlot.style.display = "none";
         if (transitionImg) {
           transitionImg.removeAttribute("src");
           transitionImg.removeAttribute("alt");
-          transitionImg.style.display = "none";
-        }
-        if (transitionSlot) {
-          transitionSlot.className = "transition-asset-slot is-neutral";
         }
         if (transitionOverlay) {
           transitionOverlay.className = "chapter-transition is-active is-neutral";
         }
         if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
-        if (transitionText) transitionText.textContent = `PHASE 0${nextIndex}`;
+        if (transitionText) transitionText.textContent = `PHASE ${String(nextIndex).padStart(2, "0")}`;
       } else {
-        // Themed transition using the single image slot
+        // Themed transition — restore slot to normal flow, then load PNG
+        if (transitionSlot) {
+          transitionSlot.style.display = "";   // remove any neutral-path collapse
+          transitionSlot.className = "transition-asset-slot";
+          transitionSlot.classList.add(`is-${semanticId}`);
+        }
         if (transitionImg) {
           transitionImg.src = `assets/transition/${config.file}`;
           transitionImg.alt = config.alt;
-          transitionImg.style.display = "block";
-        }
-        if (transitionSlot) {
-          // Reset classes and apply current semantic ID class
-          transitionSlot.className = "transition-asset-slot";
-          transitionSlot.classList.add(`is-${semanticId}`);
+          transitionImg.style.display = "";    // let CSS handle it
         }
         if (transitionOverlay) {
           transitionOverlay.className = "chapter-transition is-active";
           transitionOverlay.classList.add(`is-${nextScene}`);
         }
+        // Logical phase number (01–08) based on scene order
         if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
-        // Only display logical phase number to avoid duplicate title labels
-        if (transitionText) transitionText.textContent = `PHASE 0${nextIndex}`;
+        if (transitionText) transitionText.textContent = `PHASE ${String(nextIndex).padStart(2, "0")}`;
       }
 
       transitionForms.render(nextScene);
@@ -493,9 +491,12 @@ const sceneManager = {
           transitionOverlay.dataset.shapeStage = "";
           if (transitionBar) transitionBar.style.width = "0%";
           if (transitionForms.container) transitionForms.container.innerHTML = "";
+          // Reset slot and img so the next transition always starts clean
+          if (transitionSlot) transitionSlot.style.display = "";
           if (transitionImg) {
             transitionImg.removeAttribute("src");
             transitionImg.removeAttribute("alt");
+            transitionImg.style.display = "";
           }
           this.isTransitioning = false;
         }, releaseMs);

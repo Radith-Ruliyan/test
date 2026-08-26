@@ -520,7 +520,7 @@ h1 em, h2 em {
 }
 
 /* --------------------------------------------------------------------------
-   7. CHAPTER TRANSITION & BRIDGE VISUALS
+   7. CHAPTER TRANSITION — VERTICAL STACK LAYOUT
    -------------------------------------------------------------------------- */
 .chapter-transition {
   position: fixed;
@@ -528,8 +528,10 @@ h1 em, h2 em {
   inset: 0;
   width: 100%;
   height: var(--app-height);
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   color: var(--sky-0);
   background: radial-gradient(circle at 50% 50%, var(--blue-deep), var(--ink) 72%);
@@ -545,6 +547,7 @@ h1 em, h2 em {
   pointer-events: auto;
 }
 
+/* Decorative pulse ring — absolutely positioned, independent of stack */
 .chapter-transition__pulse {
   position: absolute;
   left: 50%;
@@ -556,6 +559,8 @@ h1 em, h2 em {
   transform: translate(-50%, -50%) scale(0);
   box-shadow: 0 0 26px var(--sky-3);
   opacity: 0;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .chapter-transition.is-active .chapter-transition__pulse {
@@ -563,115 +568,123 @@ h1 em, h2 em {
 }
 
 @keyframes transitionPulse {
-  0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.2); }
-  60% { opacity: 0.5; transform: translate(-50%, -50%) scale(2.2); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.4); }
+  0%   { opacity: 0.95; transform: translate(-50%, -50%) scale(0.2); }
+  60%  { opacity: 0.5;  transform: translate(-50%, -50%) scale(2.2); }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(3.4); }
 }
 
-/* Meaningful per-phase shape formed inside #transitionBridge > #bridgeShape.
-   Every path is drawn in with stroke-dashoffset, held complete, then the
-   shape group morphs/dissolves out as the next scene reveals. Driven by
-   transitionForms in script.js via data-shape-stage on the overlay. */
-.bridge-shape {
-  transform-box: fill-box;
-  transform-origin: center;
-}
+/* Bridge SVG — kept in DOM for JS reference, never shown */
+#transitionBridge { display: none; }
 
-.bridge-shape .shape-line {
-  fill: none;
-  stroke: var(--sky-2);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: var(--len, 300);
-  stroke-dashoffset: var(--len, 300);
-  opacity: 0;
-}
-
+/* Inert base styles for bridge shapes (no longer rendered, kept for stability) */
+.bridge-shape { transform-box: fill-box; transform-origin: center; }
+.bridge-shape .shape-line { fill: none; stroke: var(--sky-2); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: var(--len, 300); stroke-dashoffset: var(--len, 300); opacity: 0; }
 .bridge-shape .shape-line--accent { stroke: var(--red); }
-.bridge-shape .shape-line--fill { fill: var(--sky-2); stroke: none; opacity: 0; }
+.bridge-shape .shape-line--fill  { fill: var(--sky-2); stroke: none; opacity: 0; }
 .bridge-shape .shape-dot { fill: var(--sky-2); opacity: 0; transform: scale(0); transform-box: fill-box; transform-origin: center; }
 .bridge-shape .shape-dot--accent { fill: var(--red); }
 
-/* Transition image slot styling */
+/* ---- Vertical stack: PNG image on top, copy (number + label + bar) below ---- */
+.chapter-transition__stack {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;                          /* controlled per-child via margin */
+  width: min(80vw, 300px);
+  /* hard cap so the entire stack fits even on short screens */
+  max-height: calc(var(--app-height) - 100px);
+}
+
+/* PNG image slot — in normal document flow, not absolute */
 .transition-asset-slot {
-  position: absolute;
-  inset: 0;
-  width: min(56vw, 220px);
-  height: min(56vw, 220px);
-  margin: auto;
-  pointer-events: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
+  /* animation start state */
   opacity: 0;
   transform: scale(0.85);
   transition: opacity 0.4s var(--ease-signal), transform 0.4s var(--ease-signal);
-  z-index: 2;
 }
 
 .transition-asset-slot img {
+  display: block;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
 
-/* Stage 1: draw-in / entry */
+/* Stage 1 — draw-in */
 .chapter-transition[data-shape-stage="draw"] .transition-asset-slot {
   opacity: 1;
   transform: scale(1);
   transition: opacity 0.5s var(--ease-out-back), transform 0.5s var(--ease-out-back);
 }
 
-/* Stage 2: hold */
+/* Stage 2 — hold */
 .chapter-transition[data-shape-stage="hold"] .transition-asset-slot {
   opacity: 1;
   transform: scale(1);
 }
 
-/* Stage 3: release / exit */
+/* Stage 3 — release / exit (only the slot animates, copy stays put) */
 .chapter-transition[data-shape-stage="release"] .transition-asset-slot {
   opacity: 0;
   transform: scale(1.15);
   transition: opacity 0.36s ease, transform 0.36s var(--ease-signal);
 }
 
-/* Semantic-specific exit animation variations for the transition image slot */
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-initializing  { transform: scaleY(0.1); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-calibration    { transform: scale(1.2) rotate(10deg); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-emotional-signal { transform: scale(0.7); opacity: 0; }
+/* Semantic exit variations — transform-only, never moves copy below */
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-initializing    { transform: scaleY(0.1);                  opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-calibration     { transform: scale(1.2) rotate(10deg);     opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-emotional-signal{ transform: scale(0.7);                   opacity: 0; }
 .chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-synchronization { transform: translateY(-20px) scale(0.9); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-decoding        { transform: scale(1.4); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-memory          { transform: translateY(20px) scale(0.9); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-connection      { transform: scale(0.6); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-question        { transform: scale(1.5); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-decoding        { transform: scale(1.4);                   opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-memory          { transform: translateY(20px) scale(0.9);  opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-connection      { transform: scale(0.6);                   opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-question        { transform: scale(1.5);                   opacity: 0; }
 
+/* ---- Copy block: phase number + label + progress bar ---- */
 .chapter-transition__copy {
-  position: relative;
-  z-index: 3;
-  width: min(76vw, 340px);
-  display: grid;
-  justify-items: center;
-  gap: 10px;
+  position: relative;            /* normal flow — never overlaps PNG above */
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   text-align: center;
+  margin-top: 6px;               /* gap between PNG and number */
 }
 
+/* Phase number — smaller, legible, stays below PNG */
 .chapter-transition__copy > span {
-  font: 400 clamp(40px, 13vw, 70px)/1 var(--display);
-  color: rgba(255, 255, 255, 0.16);
+  font: 400 clamp(24px, 7vw, 40px)/1 var(--display);
+  color: rgba(255, 255, 255, 0.18);
 }
 
+/* Phase label — e.g. "PHASE 01" */
 .chapter-transition__copy strong {
   font: 600 8.5px var(--mono);
   letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 9px;            /* gap between label and progress bar */
 }
 
+/* Progress bar track */
 .chapter-transition__copy > div {
   width: 100%;
   height: 3px;
   background: rgba(255, 255, 255, 0.14);
 }
 
+/* Progress bar fill (width animated via JS) */
 .chapter-transition__copy > div i {
   display: block;
   width: 0;
@@ -680,14 +693,18 @@ h1 em, h2 em {
   transition: width 0.65s linear;
 }
 
-#transitionBridge {
-  position: absolute;
-  inset: 0;
-  width: min(56vw, 220px);
-  height: min(56vw, 220px);
-  margin: auto;
-  pointer-events: none;
-  opacity: 0.92;
+/* Short screens: shrink PNG so entire stack still fits */
+@media (max-height: 580px) {
+  .chapter-transition__stack {
+    width: min(56vw, 200px);
+    gap: 0;
+  }
+  .chapter-transition__copy {
+    margin-top: 4px;
+  }
+  .chapter-transition__copy strong {
+    margin-bottom: 5px;
+  }
 }
 
 /* --------------------------------------------------------------------------
