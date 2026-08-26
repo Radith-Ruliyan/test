@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <!-- Ayyash to Maureen // private emotional signal -->
 <html lang="en">
 <head>
@@ -17,13 +17,14 @@
   <div class="vignette" aria-hidden="true"></div>
 
   <div class="chapter-transition" id="chapterTransition" aria-hidden="true">
-    <div class="chapter-transition__image-container">
-      <img id="transitionImage" src="" alt="" draggable="false">
-    </div>
+    <div class="chapter-transition__pulse" aria-hidden="true"></div>
+    <svg id="transitionBridge" aria-hidden="true" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+      <g id="bridgeShape" class="bridge-shape"></g>
+    </svg>
     <div class="chapter-transition__copy">
-      <span id="transitionNumber" class="sr-only">00</span>
-      <strong id="transitionText" class="sr-only">SIGNAL RECOGNIZED</strong>
-      <div class="transition-progress-wrapper"><i id="transitionBar"></i></div>
+      <span id="transitionNumber">00</span>
+      <strong id="transitionText">SIGNAL RECOGNIZED</strong>
+      <div><i id="transitionBar"></i></div>
     </div>
   </div>
 
@@ -85,11 +86,13 @@
             <path id="heroSignalCurvePath" d="M 31,31 Q 150,10 270,31"/>
           </svg>
           <div id="heroSignalParticles" aria-hidden="true"></div>
-          <div id="heroSignalField" aria-hidden="true"></div>
           <div id="heroSignalBurst" aria-hidden="true"></div>
           <i class="signal-align__beam" id="heroSignalBeam" aria-hidden="true"></i>
           <button class="signal-align__node signal-align__node--sender" id="heroSignalHandle" type="button" aria-label="Drag Ayyash's signal toward Maureen's signal"><span>A</span><small data-sender>Ayyash</small></button>
-          <div class="signal-align__node signal-align__node--receiver" id="heroSignalTarget" aria-hidden="true"><span>M</span><small data-recipient>Maureen</small></div>
+          <div class="signal-align__node signal-align__node--receiver" id="heroSignalTarget" aria-hidden="true">
+            <span>M</span><small data-recipient>Maureen</small>
+            <span class="signal-align__node-outer-wrap" aria-hidden="true"><span class="signal-align__node-outer" id="heroSignalField"></span></span>
+          </div>
           <span class="signal-align__distance" aria-hidden="true">SIGNAL DISTANCE / <b id="heroSignalDistance">100</b></span>
         </div>
       </div>

@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
    Interaction Architecture, Mechanics & Geometry Controller (AI #3 Recovery)
    ========================================================================== */
@@ -33,104 +33,6 @@ const siteConfig = {
     no: "ANSWER RECEIVED / Your honesty is respected. A sincere feeling should never take away your freedom to choose."
   }
 };
-
-const transitionConfig = {
-  hero: [
-    {
-      id: "initializing",
-      title: "PHASE 01 / INITIALIZING",
-      src: "assets/transition/transition-01-eye-scanner.png",
-      animation: "eye-scanner",
-      duration: 1600
-    }
-  ],
-  connection: [
-    {
-      id: "authentication",
-      title: "PHASE 02 / AUTHENTICATION",
-      src: "assets/transition/transition-02-biometric-pattern.png",
-      animation: "biometric-pattern",
-      duration: 1600
-    }
-  ],
-  records: [
-    {
-      id: "calibration",
-      title: "PHASE 03 / CALIBRATION",
-      src: "assets/transition/transition-03-target-locked.png",
-      animation: "target-locked",
-      duration: 1600
-    }
-  ],
-  timeline: [
-    {
-      id: "signal-detected",
-      title: "PHASE 04 / SIGNAL DETECTED",
-      src: "assets/transition/transition-04-pulse-heart.png",
-      animation: "pulse-heart",
-      duration: 1600
-    }
-  ],
-  barrier: [
-    {
-      id: "synchronization",
-      title: "PHASE 05 / SYNCHRONIZATION",
-      src: "assets/transition/transition-05-dual-node-link.png",
-      animation: "dual-node-link",
-      duration: 1600
-    }
-  ],
-  letter: [
-    {
-      id: "decoding",
-      title: "PHASE 06 / DECODING",
-      src: "assets/transition/transition-06-message-packet.png",
-      animation: "message-packet",
-      duration: 1600
-    }
-  ],
-  response: [
-    {
-      id: "memory",
-      title: "PHASE 07 / MEMORY",
-      src: "assets/transition/transition-07-polaroid-data.png",
-      animation: "polaroid-data",
-      duration: 1600
-    }
-  ],
-  reply: [
-    {
-      id: "connection",
-      title: "PHASE 08 / CONNECTION",
-      src: "assets/transition/transition-08-merge-pulse.png",
-      animation: "merge-pulse",
-      duration: 1300
-    },
-    {
-      id: "question",
-      title: "PHASE 09 / QUESTION",
-      src: "assets/transition/transition-09-question-dialogue.png",
-      animation: "question-dialogue",
-      duration: 1300
-    },
-    {
-      id: "final-confirmation",
-      title: "PHASE 10 / FINAL CONFIRMATION",
-      src: "assets/transition/transition-10-gate-unlocked.png",
-      animation: "gate-unlocked",
-      duration: 1600
-    }
-  ]
-};
-
-function preloadTransitionImages() {
-  Object.values(transitionConfig).forEach(chain => {
-    chain.forEach(conf => {
-      const img = new Image();
-      img.src = conf.src;
-    });
-  });
-}
 
 /* --------------------------------------------------------------------------
    UTILITY HELPERS & QUERY SELECTORS
@@ -378,12 +280,115 @@ const geometryManager = {
 };
 
 /* --------------------------------------------------------------------------
+   CHAPTER TRANSITION SHAPES
+   Each entry in SHAPE_LIBRARY describes a single recognizable object that is
+   drawn (stroke-dashoffset), held complete for ~300-500ms, then released
+   (morphed/dissolved) by CSS as the next scene is revealed. Keyed by the
+   scene being entered, so it visually announces what's coming.
+   -------------------------------------------------------------------------- */
+const SVGNS = "http://www.w3.org/2000/svg";
+
+const SHAPE_LIBRARY = {
+  // hero: "signal detected" -> a scanning eye completing (lid, iris, pupil)
+  hero: [
+    { tag: "path", cls: "shape-line", attrs: { d: "M40,100 Q100,58 160,100 Q100,142 40,100 Z" } },
+    { tag: "circle", cls: "shape-line", attrs: { cx: 100, cy: 100, r: 21 } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 7 } }
+  ],
+  // connection: two signals rotary-tuning into a single locked link
+  connection: [
+    { tag: "circle", cls: "shape-line", attrs: { cx: 54, cy: 100, r: 15 } },
+    { tag: "circle", cls: "shape-line", attrs: { cx: 146, cy: 100, r: 15 } },
+    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M69,100 L131,100" } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 5 } }
+  ],
+  // records: radar lens locking onto a target reticle
+  records: [
+    { tag: "circle", cls: "shape-line", attrs: { cx: 100, cy: 100, r: 52 } },
+    { tag: "circle", cls: "shape-line", attrs: { cx: 100, cy: 100, r: 27 } },
+    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M100,32 L100,50 M100,150 L100,168 M32,100 L50,100 M150,100 L168,100" } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 4 } }
+  ],
+  // timeline: a vertical journey path marked by milestones
+  timeline: [
+    { tag: "path", cls: "shape-line", attrs: { d: "M100,32 L100,168" } },
+    { tag: "circle", cls: "shape-dot", attrs: { cx: 100, cy: 32, r: 5 } },
+    { tag: "circle", cls: "shape-dot", attrs: { cx: 100, cy: 78, r: 5 } },
+    { tag: "circle", cls: "shape-dot", attrs: { cx: 100, cy: 122, r: 5 } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 168, r: 7 } }
+  ],
+  // barrier: an A.T. Field hexagon locking into place
+  barrier: [
+    { tag: "path", cls: "shape-line shape-line--fill", attrs: { d: "M100,42 L152,71 L152,129 L100,158 L48,129 L48,71 Z" } },
+    { tag: "path", cls: "shape-line", attrs: { d: "M100,42 L152,71 L152,129 L100,158 L48,129 L48,71 Z" } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 5 } }
+  ],
+  // letter: an envelope assembling from its fold lines, then sealed
+  letter: [
+    { tag: "path", cls: "shape-line", attrs: { d: "M42,66 L158,66 L158,146 L42,146 Z" } },
+    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M42,66 L100,112 L158,66" } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 136, r: 5 } }
+  ],
+  // response: a question forming inside a speech bubble
+  response: [
+    { tag: "path", cls: "shape-line", attrs: { d: "M46,58 Q38,58 38,68 L38,116 Q38,126 48,126 L72,126 L92,150 L96,126 L152,126 Q162,126 162,116 L162,68 Q162,58 152,58 Z" } },
+    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M84,80 Q84,66 100,66 Q116,66 116,80 Q116,90 104,96 Q98,99 98,108" } },
+    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 98, cy: 120, r: 4 } }
+  ],
+  // reply: two answered signals resolving into one shared heart
+  reply: [
+    { tag: "path", cls: "shape-line shape-line--fill", attrs: { d: "M100,152 C62,124 34,96 34,68 C34,44 55,30 76,38 C90,43 98,54 100,64 C102,54 110,43 124,38 C145,30 166,44 166,68 C166,96 138,124 100,152 Z" } },
+    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M100,152 C62,124 34,96 34,68 C34,44 55,30 76,38 C90,43 98,54 100,64 C102,54 110,43 124,38 C145,30 166,44 166,68 C166,96 138,124 100,152 Z" } }
+  ]
+};
+
+const transitionForms = {
+  container: null,
+
+  init() {
+    this.container = $("#bridgeShape");
+  },
+
+  render(sceneName) {
+    if (!this.container) this.init();
+    if (!this.container) return;
+    const shapeDefs = SHAPE_LIBRARY[sceneName];
+    this.container.innerHTML = "";
+    if (!shapeDefs) return;
+
+    shapeDefs.forEach((def, i) => {
+      const el = document.createElementNS(SVGNS, def.tag);
+      Object.entries(def.attrs).forEach(([key, value]) => el.setAttribute(key, String(value)));
+      el.setAttribute("class", def.cls);
+      // Stagger each element slightly so the object visibly assembles
+      // piece by piece rather than popping in all at once.
+      el.style.transitionDelay = `${i * 70}ms`;
+      this.container.appendChild(el);
+
+      if (def.tag === "path") {
+        // Measure the real path length so the draw-in offset is precise.
+        try {
+          const len = el.getTotalLength();
+          el.style.setProperty("--len", String(Math.max(len, 1)));
+        } catch (err) { /* ignore in unsupported environments */ }
+      }
+    });
+  }
+};
+
+/* --------------------------------------------------------------------------
    SCENE MANAGER & CHAPTER TRANSITIONS
    -------------------------------------------------------------------------- */
 const sceneManager = {
   scenes: ["boot", "hero", "connection", "records", "timeline", "barrier", "letter", "response", "reply"],
   currentScene: "boot",
   isTransitioning: false,
+  _activeTimers: [],
+
+  clearTimers() {
+    this._activeTimers.forEach((id) => window.clearTimeout(id));
+    this._activeTimers = [];
+  },
 
   init() {
     this.createPips();
@@ -434,6 +439,7 @@ const sceneManager = {
   advanceTo(nextScene) {
     if (this.isTransitioning || this.currentScene === nextScene) return;
     this.isTransitioning = true;
+    this.clearTimers();
 
     soundSystem.playInterface();
     const currentEl = $(`.scene[data-scene="${this.currentScene}"]`);
@@ -448,59 +454,62 @@ const sceneManager = {
     if (currentModule?.exit) currentModule.exit();
     hintController.detach();
 
-    const configs = transitionConfig[nextScene];
+    if (transitionOverlay && nextScene !== "boot") {
+      const nextIndex = this.scenes.indexOf(nextScene);
+      if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
+      if (transitionText) transitionText.textContent = `PHASE 0${nextIndex} / INITIALIZING`;
 
-    if (transitionOverlay && nextScene !== "boot" && configs && configs.length > 0) {
-      transitionOverlay.classList.add("is-active");
+      const DRAW_MS = 720;   // object assembles, synced to interaction that triggered it
+      const HOLD_MS = 400;   // object sits complete and recognizable (300-500ms)
+      const RELEASE_MS = 360; // object morphs/dissolves toward the next scene
+
+      // 1. Build the meaningful object for the scene we're entering and
+      //    start its draw-in the instant the user's action fires the
+      //    transition (never before the interaction completes).
+      transitionForms.render(nextScene);
+      transitionOverlay.dataset.shapeStage = "draw";
+      transitionOverlay.classList.add("is-active", `is-${nextScene}`);
       if (transitionBar) transitionBar.style.width = "100%";
 
-      let currentChainIndex = 0;
+      // 2. Object finishes forming and is held fully visible/recognizable.
+      const holdTimer = window.setTimeout(() => {
+        transitionOverlay.dataset.shapeStage = "hold";
+      }, DRAW_MS);
 
-      const playNextInChain = () => {
-        const conf = configs[currentChainIndex];
-        const img = $("#transitionImage");
-
-        if (img) {
-          img.src = conf.src;
-          img.alt = conf.title;
-          img.className = `transition-img--${conf.animation}`;
+      // 3. Swap the actual scenes underneath while the object is held, then
+      //    begin its morph/dissolve as the next scene becomes visible.
+      const swapTimer = window.setTimeout(() => {
+        if (currentEl) {
+          currentEl.classList.remove("is-active");
+          currentEl.setAttribute("aria-hidden", "true");
         }
-        if (transitionNum) transitionNum.textContent = String(this.scenes.indexOf(nextScene)).padStart(2, "0");
-        if (transitionText) transitionText.textContent = conf.title;
+        if (nextEl) {
+          nextEl.classList.add("is-active");
+          nextEl.setAttribute("aria-hidden", "false");
+          nextEl.scrollTop = 0; // Scene-local overflow reset
+        }
 
-        window.setTimeout(() => {
-          currentChainIndex++;
-          if (currentChainIndex < configs.length) {
-            playNextInChain();
-          } else {
-            if (currentEl) {
-              currentEl.classList.remove("is-active");
-              currentEl.setAttribute("aria-hidden", "true");
-            }
-            if (nextEl) {
-              nextEl.classList.add("is-active");
-              nextEl.setAttribute("aria-hidden", "false");
-              nextEl.scrollTop = 0;
-            }
+        this.currentScene = nextScene;
+        this.updateChrome(nextScene);
 
-            this.currentScene = nextScene;
-            this.updateChrome(nextScene);
+        const nextModule = sceneModules[nextScene];
+        if (nextModule?.enter) nextModule.enter();
+        if (nextModule?.recalculateGeometry) nextModule.recalculateGeometry();
+        hintController.attach(nextEl);
 
-            const nextModule = sceneModules[nextScene];
-            if (nextModule?.enter) nextModule.enter();
-            if (nextModule?.recalculateGeometry) nextModule.recalculateGeometry();
-            hintController.attach(nextEl);
+        transitionOverlay.dataset.shapeStage = "release";
 
-            window.setTimeout(() => {
-              transitionOverlay.classList.remove("is-active");
-              if (transitionBar) transitionBar.style.width = "0%";
-              this.isTransitioning = false;
-            }, 400);
-          }
-        }, conf.duration);
-      };
+        const releaseTimer = window.setTimeout(() => {
+          transitionOverlay.classList.remove("is-active", `is-${nextScene}`);
+          transitionOverlay.dataset.shapeStage = "";
+          if (transitionBar) transitionBar.style.width = "0%";
+          if (transitionForms.container) transitionForms.container.innerHTML = "";
+          this.isTransitioning = false;
+        }, RELEASE_MS);
+        this._activeTimers.push(releaseTimer);
+      }, DRAW_MS + HOLD_MS);
 
-      playNextInChain();
+      this._activeTimers.push(holdTimer, swapTimer);
     } else {
       if (currentEl) {
         currentEl.classList.remove("is-active");
@@ -686,8 +695,14 @@ const heroScene = {
   curvePath: null,
   fieldEl: null,
   isDragging: false,
-  dragX: 0,
+  progress: 0, // single source of truth, 0..1, drives both node position and beam length
   maxDrag: 240,
+  handleRadius: 26,
+  nodeLeftOffset: 4,
+  activePointerId: null,
+  rafId: null,
+  pendingProgress: null,
+  returnRafId: null,
   completed: false,
 
   init() {
@@ -702,98 +717,187 @@ const heroScene = {
     if (this.handle) {
       this.handle.addEventListener("pointerdown", (e) => this.onPointerDown(e));
       window.addEventListener("pointermove", (e) => this.onPointerMove(e));
-      window.addEventListener("pointerup", () => this.onPointerUp());
-      window.addEventListener("pointercancel", () => this.onPointerUp());
+      window.addEventListener("pointerup", (e) => this.onPointerUp(e));
+      window.addEventListener("pointercancel", (e) => this.onPointerUp(e));
+      this.handle.addEventListener("lostpointercapture", (e) => this.onPointerUp(e));
 
       this.handle.addEventListener("keydown", (e) => {
         if (this.completed) return;
         if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-          this.setDrag(this.dragX + (e.shiftKey ? 30 : 12));
+          this.setProgressImmediate(this.progress + (e.shiftKey ? 0.12 : 0.05));
         } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-          this.setDrag(this.dragX - (e.shiftKey ? 30 : 12));
+          this.setProgressImmediate(this.progress - (e.shiftKey ? 0.12 : 0.05));
         } else if (e.key === "Enter" || e.key === " ") {
-          if (this.dragX >= this.maxDrag * 0.8) {
+          if (this.progress >= 0.8) {
             this.complete();
           }
         }
       });
+
+      window.addEventListener("resize", () => this.recalculateGeometry());
+      window.addEventListener("orientationchange", () => this.recalculateGeometry());
     }
   },
 
   recalculateGeometry() {
     if (!this.track || !this.handle || !this.target) return;
     const trackRect = this.track.getBoundingClientRect();
-    const handleRect = this.handle.getBoundingClientRect();
     const targetRect = this.target.getBoundingClientRect();
 
-    // Actual travel distance between start handle and target node centers
-    this.maxDrag = Math.max(80, (targetRect.left + targetRect.width / 2) - (trackRect.left + 28));
-    if (this.completed) {
-      this.setDrag(this.maxDrag);
-    } else {
-      this.setDrag(this.dragX);
+    this.handleRadius = (this.handle.offsetWidth || 52) / 2;
+    this.nodeLeftOffset = parseFloat(getComputedStyle(this.handle).left) || 4;
+
+    // Actual travel distance between start handle center and target node center
+    this.maxDrag = Math.max(
+      60,
+      (targetRect.left + targetRect.width / 2) - (trackRect.left + this.nodeLeftOffset + this.handleRadius)
+    );
+
+    if (this.beamEl) {
+      this.beamEl.style.left = `${this.nodeLeftOffset + this.handleRadius - 1}px`;
+      this.beamEl.style.width = `${this.maxDrag + 1}px`;
     }
+
+    this.renderProgress(this.completed ? 1 : this.progress);
   },
 
   onPointerDown(e) {
     if (this.completed) return;
+    this.cancelReturnAnimation();
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
     this.isDragging = true;
+    this.activePointerId = e.pointerId;
     this.handle.classList.add("is-dragging");
-    this.handle.setPointerCapture?.(e.pointerId);
+    if (this.beamEl) this.beamEl.classList.add("is-dragging");
+    try { this.handle.setPointerCapture(e.pointerId); } catch (err) { /* no-op */ }
     hintController.notifyProgress();
   },
 
   onPointerMove(e) {
     if (!this.isDragging || this.completed || !this.track) return;
+    if (this.activePointerId !== null && e.pointerId !== this.activePointerId) return;
     const rect = this.track.getBoundingClientRect();
-    const x = e.clientX - rect.left - 26;
-    this.setDrag(x);
+    const x = e.clientX - rect.left - this.nodeLeftOffset - this.handleRadius;
+    this.pendingProgress = clamp(x / this.maxDrag, 0, 1);
+
+    if (this.rafId === null) {
+      this.rafId = requestAnimationFrame(() => this.flushPendingProgress());
+    }
   },
 
-  setDrag(val) {
-    if (!this.track) return;
-    this.dragX = clamp(val, 0, this.maxDrag);
+  flushPendingProgress() {
+    this.rafId = null;
+    if (this.pendingProgress === null) return;
+    const ratio = this.pendingProgress;
+    this.pendingProgress = null;
+    this.renderProgress(ratio);
+    if (ratio >= 0.93 && !this.completed) {
+      this.complete();
+    }
+  },
 
-    const ratio = (this.maxDrag - this.dragX) / this.maxDrag;
-    const distValue = Math.round(ratio * 100);
+  setProgressImmediate(val) {
+    this.cancelReturnAnimation();
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.pendingProgress = null;
+    this.renderProgress(clamp(val, 0, 1));
+    if (this.progress >= 0.93) this.complete();
+  },
 
-    this.handle.style.setProperty("--drag-x", `${this.dragX}px`);
+  renderProgress(ratio) {
+    this.progress = clamp(ratio, 0, 1);
+    const dragX = this.progress * this.maxDrag;
+
+    if (this.handle) this.handle.style.transform = `translateX(${dragX}px)`;
+    if (this.beamEl) this.beamEl.style.transform = `scaleX(${this.progress})`;
+
+    const distValue = Math.round((1 - this.progress) * 100);
     if (this.distanceEl) this.distanceEl.textContent = String(distValue);
 
-    if (this.beamEl) {
-      this.beamEl.style.width = `${this.dragX}px`;
-    }
-
     if (this.curvePath) {
-      const midX = 28 + this.dragX / 2;
-      const heightOffset = 31 - Math.sin((this.dragX / this.maxDrag) * Math.PI) * 16;
-      this.curvePath.setAttribute("d", `M 28,31 Q ${midX},${heightOffset} ${28 + this.dragX},31`);
+      const originX = this.nodeLeftOffset + this.handleRadius;
+      const midX = originX + dragX / 2;
+      const heightOffset = 31 - Math.sin(this.progress * Math.PI) * 16;
+      this.curvePath.setAttribute("d", `M ${originX},31 Q ${midX},${heightOffset} ${originX + dragX},31`);
     }
 
     if (this.fieldEl) {
-      if (ratio <= 0.22) {
+      if (this.progress >= 0.78) {
         this.fieldEl.classList.add("is-captured");
       } else {
         this.fieldEl.classList.remove("is-captured");
       }
     }
+  },
 
-    if (this.dragX >= this.maxDrag * 0.93) {
-      this.complete();
+  onPointerUp(e) {
+    if (this.activePointerId !== null && e && e.pointerId !== undefined && e.pointerId !== this.activePointerId) return;
+    if (!this.isDragging) return;
+    this.isDragging = false;
+    this.activePointerId = null;
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.pendingProgress = null;
+    if (this.handle) this.handle.classList.remove("is-dragging");
+    if (this.beamEl) this.beamEl.classList.remove("is-dragging");
+
+    if (!this.completed) {
+      this.animateReturn();
     }
   },
 
-  onPointerUp() {
-    this.isDragging = false;
-    if (this.handle) this.handle.classList.remove("is-dragging");
+  animateReturn() {
+    this.cancelReturnAnimation();
+    const startProgress = this.progress;
+    if (startProgress <= 0.001) {
+      this.renderProgress(0);
+      return;
+    }
+    const duration = 280;
+    const startTime = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const step = (now) => {
+      const t = clamp((now - startTime) / duration, 0, 1);
+      const eased = ease(t);
+      this.renderProgress(startProgress * (1 - eased));
+      if (t < 1) {
+        this.returnRafId = requestAnimationFrame(step);
+      } else {
+        this.returnRafId = null;
+        this.renderProgress(0);
+      }
+    };
+    this.returnRafId = requestAnimationFrame(step);
+  },
+
+  cancelReturnAnimation() {
+    if (this.returnRafId !== null) {
+      cancelAnimationFrame(this.returnRafId);
+      this.returnRafId = null;
+    }
   },
 
   complete() {
     if (this.completed) return;
     this.completed = true;
     this.isDragging = false;
-    this.dragX = this.maxDrag;
-    this.setDrag(this.maxDrag);
+    this.activePointerId = null;
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.cancelReturnAnimation();
+    if (this.handle) this.handle.classList.remove("is-dragging");
+    if (this.beamEl) this.beamEl.classList.remove("is-dragging");
+    this.renderProgress(1);
 
     const alignRoot = $("#heroSignalAlign");
     if (alignRoot) alignRoot.classList.add("is-complete");
@@ -811,15 +915,25 @@ const heroScene = {
   },
   exit() {
     this.isDragging = false;
+    this.activePointerId = null;
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.cancelReturnAnimation();
   },
   reset() {
     this.completed = false;
     this.isDragging = false;
-    this.dragX = 0;
-    if (this.handle) {
-      this.handle.style.setProperty("--drag-x", "0px");
-      this.handle.classList.remove("is-dragging");
+    this.activePointerId = null;
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
     }
+    this.cancelReturnAnimation();
+    this.renderProgress(0);
+    if (this.handle) this.handle.classList.remove("is-dragging");
+    if (this.beamEl) this.beamEl.classList.remove("is-dragging");
     const alignRoot = $("#heroSignalAlign");
     if (alignRoot) alignRoot.classList.remove("is-complete");
     if (this.distanceEl) this.distanceEl.textContent = "100";
@@ -1785,9 +1899,9 @@ function setupAmbientCanvas() {
    -------------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   applyConfig();
-  preloadTransitionImages();
   inputModeTracker.init();
   soundSystem.init();
+  transitionForms.init();
   sceneManager.init();
   geometryManager.init();
 

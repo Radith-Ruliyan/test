@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
    Visual System, Responsive Layout & Animation Architecture (AI #3 Recovery)
    ========================================================================== */
@@ -545,35 +545,90 @@ h1 em, h2 em {
   pointer-events: auto;
 }
 
-.chapter-transition__image-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  padding: 20px;
-  position: relative;
+.chapter-transition__pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+  transform: translate(-50%, -50%) scale(0);
+  box-shadow: 0 0 26px var(--sky-3);
+  opacity: 0;
 }
 
-.chapter-transition__image-container img {
-  width: clamp(230px, 76vw, 340px);
-  max-width: 100%;
-  height: auto;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
-  -webkit-user-select: none;
-  pointer-events: none;
-  display: block;
-  margin: 0 auto;
+.chapter-transition.is-active .chapter-transition__pulse {
+  animation: transitionPulse 0.55s var(--ease-signal) forwards;
 }
 
-@media (min-width: 768px) {
-  .chapter-transition__image-container img {
-    width: 390px;
-  }
+@keyframes transitionPulse {
+  0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.2); }
+  60% { opacity: 0.5; transform: translate(-50%, -50%) scale(2.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.4); }
 }
+
+/* Meaningful per-phase shape formed inside #transitionBridge > #bridgeShape.
+   Every path is drawn in with stroke-dashoffset, held complete, then the
+   shape group morphs/dissolves out as the next scene reveals. Driven by
+   transitionForms in script.js via data-shape-stage on the overlay. */
+.bridge-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.bridge-shape .shape-line {
+  fill: none;
+  stroke: var(--sky-2);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: var(--len, 300);
+  stroke-dashoffset: var(--len, 300);
+  opacity: 0;
+}
+
+.bridge-shape .shape-line--accent { stroke: var(--red); }
+.bridge-shape .shape-line--fill { fill: var(--sky-2); stroke: none; opacity: 0; }
+.bridge-shape .shape-dot { fill: var(--sky-2); opacity: 0; transform: scale(0); transform-box: fill-box; transform-origin: center; }
+.bridge-shape .shape-dot--accent { fill: var(--red); }
+
+/* Stage 1: draw-in, synced to the scene-swap window (~0 - 780ms) */
+.chapter-transition[data-shape-stage="draw"] .shape-line {
+  opacity: 1;
+  transition: stroke-dashoffset 0.72s var(--ease-signal), opacity 0.18s ease;
+  stroke-dashoffset: 0;
+}
+.chapter-transition[data-shape-stage="draw"] .shape-dot {
+  opacity: 1;
+  transition: transform 0.4s var(--ease-out-back) 0.32s, opacity 0.2s ease 0.32s;
+  transform: scale(1);
+}
+
+/* Stage 2: shape complete, held fully formed (~300-500ms) */
+.chapter-transition[data-shape-stage="hold"] .shape-line { opacity: 1; stroke-dashoffset: 0; }
+.chapter-transition[data-shape-stage="hold"] .shape-dot { opacity: 1; transform: scale(1); }
+.chapter-transition[data-shape-stage="hold"] .shape-line--fill { opacity: 0.9; transition: opacity 0.3s ease; }
+
+/* Stage 3: morph/dissolve toward next scene */
+.chapter-transition[data-shape-stage="release"] .bridge-shape {
+  transition: transform 0.4s var(--ease-signal), opacity 0.36s ease;
+}
+.chapter-transition[data-shape-stage="release"] .shape-line,
+.chapter-transition[data-shape-stage="release"] .shape-dot,
+.chapter-transition[data-shape-stage="release"] .shape-line--fill {
+  transition: opacity 0.34s ease, transform 0.4s var(--ease-signal);
+}
+
+/* Scene-specific release moves: each phase closes the way its object would */
+.chapter-transition.is-hero[data-shape-stage="release"] .bridge-shape { transform: scaleY(0.05); opacity: 0; }
+.chapter-transition.is-connection[data-shape-stage="release"] .bridge-shape { transform: scale(1.15); opacity: 0; }
+.chapter-transition.is-records[data-shape-stage="release"] .bridge-shape { transform: scale(0.5); opacity: 0; }
+.chapter-transition.is-timeline[data-shape-stage="release"] .bridge-shape { transform: translateY(-14px) scale(0.92); opacity: 0; }
+.chapter-transition.is-barrier[data-shape-stage="release"] .bridge-shape { transform: scale(1.3); opacity: 0; }
+.chapter-transition.is-letter[data-shape-stage="release"] .bridge-shape { transform: translateY(6px) scale(0.9); opacity: 0; }
+.chapter-transition.is-response[data-shape-stage="release"] .bridge-shape { transform: scale(0.7); opacity: 0; }
+.chapter-transition.is-reply[data-shape-stage="release"] .bridge-shape { transform: scale(1.5); opacity: 0; }
 
 .chapter-transition__copy {
   position: relative;
@@ -583,16 +638,25 @@ h1 em, h2 em {
   justify-items: center;
   gap: 10px;
   text-align: center;
-  margin-bottom: max(30px, var(--safe-bottom));
 }
 
-.transition-progress-wrapper {
+.chapter-transition__copy > span {
+  font: 400 clamp(40px, 13vw, 70px)/1 var(--display);
+  color: rgba(255, 255, 255, 0.16);
+}
+
+.chapter-transition__copy strong {
+  font: 600 8.5px var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.chapter-transition__copy > div {
   width: 100%;
   height: 3px;
   background: rgba(255, 255, 255, 0.14);
 }
 
-.transition-progress-wrapper i {
+.chapter-transition__copy > div i {
   display: block;
   width: 0;
   height: 100%;
@@ -600,277 +664,14 @@ h1 em, h2 em {
   transition: width 0.65s linear;
 }
 
-/* Scanline Sweeper Helpers */
-.chapter-transition__image-container::after {
-  content: "";
+#transitionBridge {
   position: absolute;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: var(--sky-3);
-  box-shadow: 0 0 10px var(--sky-3);
-  opacity: 0;
+  inset: 0;
+  width: min(56vw, 220px);
+  height: min(56vw, 220px);
+  margin: auto;
   pointer-events: none;
-}
-
-.chapter-transition__image-container::before {
-  content: "";
-  position: absolute;
-  top: 10%;
-  bottom: 10%;
-  width: 2px;
-  background: var(--red);
-  box-shadow: 0 0 10px var(--red);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.chapter-transition.is-active:has(.transition-img--eye-scanner)::after {
-  animation: scanSweepEye 1.6s ease-in-out forwards;
-}
-
-.chapter-transition.is-active:has(.transition-img--biometric-pattern)::before {
-  animation: scanSweepHorizontal 1.6s ease-in-out forwards;
-}
-
-/* 10 Transition CSS Animations */
-.transition-img--eye-scanner {
-  animation: eyeOpen 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.transition-img--biometric-pattern {
-  animation: radialReveal 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.transition-img--target-locked {
-  animation: targetLocked 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.transition-img--pulse-heart {
-  animation: pulseHeartWipe 0.6s ease-out forwards, pulseHeartPulse 1.0s 0.6s ease-in-out infinite alternate;
-}
-
-.transition-img--dual-node-link {
-  animation: dualNodeReveal 1s ease-out forwards, dualNodeGlow 0.6s 1s ease-in-out forwards;
-}
-
-.transition-img--message-packet {
-  animation: msgPacketReveal 1.1s cubic-bezier(0.25, 1, 0.5, 1) forwards, msgPacketFlash 0.5s 1.1s ease-out;
-}
-
-.transition-img--polaroid-data {
-  animation: polaroidReveal 1.6s ease-in-out forwards;
-}
-
-.transition-img--merge-pulse {
-  animation: mergeReveal 0.8s ease-out forwards, mergeGlow 0.5s 0.8s ease-in-out forwards;
-}
-
-.transition-img--question-dialogue {
-  animation: questionPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, questionFlash 0.5s 0.8s ease-in-out forwards;
-}
-
-.transition-img--gate-unlocked {
-  animation: gateLock 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards, gateGlow 0.8s 0.8s ease-in-out forwards;
-}
-
-/* Keyframes definitions */
-@keyframes eyeOpen {
-  0% {
-    clip-path: ellipse(100% 0% at 50% 50%);
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    clip-path: ellipse(100% 100% at 50% 50%);
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes scanSweepEye {
-  0% { top: 30%; opacity: 0; }
-  20% { opacity: 1; }
-  70% { top: 70%; opacity: 1; }
-  80% { opacity: 0; }
-  100% { top: 70%; opacity: 0; }
-}
-
-@keyframes radialReveal {
-  0% {
-    clip-path: circle(0% at 50% 50%);
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    clip-path: circle(100% at 50% 50%);
-    opacity: 1;
-  }
-}
-
-@keyframes scanSweepHorizontal {
-  0% { left: 20%; opacity: 0; }
-  20% { opacity: 1; }
-  70% { left: 80%; opacity: 1; }
-  80% { opacity: 0; }
-  100% { left: 80%; opacity: 0; }
-}
-
-@keyframes targetLocked {
-  0% {
-    transform: scale(0.82);
-    opacity: 0;
-    filter: brightness(1);
-  }
-  40% {
-    opacity: 1;
-  }
-  60% {
-    transform: scale(1.02);
-    filter: brightness(1.6);
-  }
-  70% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-  85% {
-    filter: brightness(2.2) drop-shadow(0 0 20px var(--blue));
-  }
-  100% {
-    transform: scale(1);
-    filter: brightness(1);
-    opacity: 1;
-  }
-}
-
-@keyframes pulseHeartWipe {
-  0% {
-    clip-path: inset(0 100% 0 0);
-    opacity: 0;
-  }
-  100% {
-    clip-path: inset(0 0 0 0);
-    opacity: 1;
-  }
-}
-
-@keyframes pulseHeartPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-  100% { transform: scale(1.02); }
-}
-
-@keyframes dualNodeReveal {
-  0% {
-    clip-path: polygon(0 0, 10% 0, 10% 100%, 0 100%, 100% 100%, 90% 100%, 90% 0, 100% 0);
-    opacity: 0;
-  }
-  60% {
-    opacity: 1;
-  }
-  100% {
-    clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%, 100% 100%, 50% 100%, 50% 0, 100% 0);
-    opacity: 1;
-  }
-}
-
-@keyframes dualNodeGlow {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.6) drop-shadow(0 0 15px var(--blue)); }
-  100% { filter: brightness(1); }
-}
-
-@keyframes msgPacketReveal {
-  0% {
-    transform: translateY(20px);
-    clip-path: inset(50% 0 50% 0);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    clip-path: inset(0 0 0 0);
-    opacity: 1;
-  }
-}
-
-@keyframes msgPacketFlash {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.8) drop-shadow(0 0 15px var(--green)); }
-  100% { filter: brightness(1); }
-}
-
-@keyframes polaroidReveal {
-  0% {
-    opacity: 0;
-    filter: grayscale(1) contrast(0.5) brightness(1.3);
-  }
-  30% {
-    opacity: 1;
-    filter: grayscale(1) contrast(0.6) brightness(1.2);
-  }
-  70% {
-    filter: grayscale(0.5) contrast(0.9) brightness(1.1);
-  }
-  100% {
-    opacity: 1;
-    filter: grayscale(0) contrast(1) brightness(1);
-  }
-}
-
-@keyframes mergeReveal {
-  0% {
-    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%, 100% 100%, 100% 100%, 100% 0, 100% 0);
-    opacity: 0;
-  }
-  100% {
-    clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%, 100% 100%, 50% 100%, 50% 0, 100% 0);
-    opacity: 1;
-  }
-}
-
-@keyframes mergeGlow {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.7) drop-shadow(0 0 20px var(--red)); transform: scale(1.02); }
-  100% { filter: brightness(1); transform: scale(1); }
-}
-
-@keyframes questionPop {
-  0% {
-    transform: scale(0.7);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes questionFlash {
-  0% { filter: brightness(1); }
-  50% { filter: brightness(1.6) drop-shadow(0 0 12px var(--blue)); }
-  100% { filter: brightness(1); }
-}
-
-@keyframes gateLock {
-  0% {
-    transform: scale(1.3) rotate(15deg);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-}
-
-@keyframes gateGlow {
-  0% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
-  40% { filter: brightness(1.8) drop-shadow(0 0 25px var(--green)); }
-  100% { filter: brightness(3) drop-shadow(0 0 50px var(--white)); opacity: 0; }
+  opacity: 0.92;
 }
 
 /* --------------------------------------------------------------------------
@@ -1109,12 +910,16 @@ h1 em, h2 em {
 }
 
 .hero-art img {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  width: 100%;
-  height: 100%;
+  left: 50%;
+  top: 4%;
+  width: auto;
+  height: 168%;
+  max-width: none;
+  transform: translateX(-50%);
   object-fit: contain;
-  object-position: center bottom;
+  object-position: center top;
 }
 
 .hero-art__warning {
@@ -1133,17 +938,17 @@ h1 em, h2 em {
   position: absolute;
   z-index: 1;
   left: 50%;
-  bottom: 5%;
+  top: 56%;
   width: min(55vw, 200px);
   aspect-ratio: 1;
   border: 1px dashed var(--blue);
   border-radius: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   animation: orbitRotate 20s linear infinite;
 }
 
 @keyframes orbitRotate {
-  to { transform: translateX(-50%) rotate(360deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 .asset-fallback {
@@ -1199,13 +1004,20 @@ h1 em, h2 em {
 
 .signal-align__beam {
   position: absolute;
-  left: 28px;
+  left: 27px;
   top: 30px;
-  width: var(--drag-x, 0px);
+  width: 240px;
   height: 3px;
   background: var(--blue);
   box-shadow: 0 0 10px var(--blue);
   pointer-events: none;
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+
+.signal-align__beam.is-dragging {
+  transition: none;
 }
 
 #heroSignalCurve {
@@ -1226,17 +1038,30 @@ h1 em, h2 em {
   opacity: calc(1 - var(--distance-ratio, 1));
 }
 
+.signal-align__node-outer-wrap {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 76px;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 #heroSignalField {
   position: absolute;
-  right: -6px;
-  top: -6px;
-  width: 76px;
-  height: 76px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
   border: 1px dashed var(--red);
   border-radius: 50%;
+  box-sizing: border-box;
   pointer-events: none;
   opacity: 0.35;
-  transform: scale(calc(1.3 - var(--distance-ratio, 1) * 0.3));
+  transform: scale(1);
+  transform-origin: center center;
   transition: opacity 0.2s, transform 0.2s;
 }
 
@@ -1306,13 +1131,16 @@ h1 em, h2 em {
   left: 4px;
   cursor: grab;
   box-shadow: 0 0 0 5px rgba(0, 159, 227, 0.12);
-  transform: translateX(var(--drag-x, 0px));
+  transform: translateX(0px);
   transition: box-shadow 0.2s;
+  will-change: transform;
+  touch-action: none;
 }
 
 .signal-align__node--sender.is-dragging {
   cursor: grabbing;
   box-shadow: 0 0 0 9px rgba(0, 159, 227, 0.25);
+  transition: none;
 }
 
 .signal-align__node--receiver {
