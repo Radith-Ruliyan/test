@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
    Visual System, Responsive Layout & Animation Architecture (AI #3 Recovery)
    ========================================================================== */
@@ -593,42 +593,58 @@ h1 em, h2 em {
 .bridge-shape .shape-dot { fill: var(--sky-2); opacity: 0; transform: scale(0); transform-box: fill-box; transform-origin: center; }
 .bridge-shape .shape-dot--accent { fill: var(--red); }
 
-/* Stage 1: draw-in, synced to the scene-swap window (~0 - 780ms) */
-.chapter-transition[data-shape-stage="draw"] .shape-line {
-  opacity: 1;
-  transition: stroke-dashoffset 0.72s var(--ease-signal), opacity 0.18s ease;
-  stroke-dashoffset: 0;
+/* Transition image slot styling */
+.transition-asset-slot {
+  position: absolute;
+  inset: 0;
+  width: min(56vw, 220px);
+  height: min(56vw, 220px);
+  margin: auto;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.4s var(--ease-signal), transform 0.4s var(--ease-signal);
+  z-index: 2;
 }
-.chapter-transition[data-shape-stage="draw"] .shape-dot {
+
+.transition-asset-slot img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Stage 1: draw-in / entry */
+.chapter-transition[data-shape-stage="draw"] .transition-asset-slot {
   opacity: 1;
-  transition: transform 0.4s var(--ease-out-back) 0.32s, opacity 0.2s ease 0.32s;
+  transform: scale(1);
+  transition: opacity 0.5s var(--ease-out-back), transform 0.5s var(--ease-out-back);
+}
+
+/* Stage 2: hold */
+.chapter-transition[data-shape-stage="hold"] .transition-asset-slot {
+  opacity: 1;
   transform: scale(1);
 }
 
-/* Stage 2: shape complete, held fully formed (~300-500ms) */
-.chapter-transition[data-shape-stage="hold"] .shape-line { opacity: 1; stroke-dashoffset: 0; }
-.chapter-transition[data-shape-stage="hold"] .shape-dot { opacity: 1; transform: scale(1); }
-.chapter-transition[data-shape-stage="hold"] .shape-line--fill { opacity: 0.9; transition: opacity 0.3s ease; }
-
-/* Stage 3: morph/dissolve toward next scene */
-.chapter-transition[data-shape-stage="release"] .bridge-shape {
-  transition: transform 0.4s var(--ease-signal), opacity 0.36s ease;
-}
-.chapter-transition[data-shape-stage="release"] .shape-line,
-.chapter-transition[data-shape-stage="release"] .shape-dot,
-.chapter-transition[data-shape-stage="release"] .shape-line--fill {
-  transition: opacity 0.34s ease, transform 0.4s var(--ease-signal);
+/* Stage 3: release / exit */
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot {
+  opacity: 0;
+  transform: scale(1.15);
+  transition: opacity 0.36s ease, transform 0.36s var(--ease-signal);
 }
 
-/* Scene-specific release moves: each phase closes the way its object would */
-.chapter-transition.is-hero[data-shape-stage="release"] .bridge-shape { transform: scaleY(0.05); opacity: 0; }
-.chapter-transition.is-connection[data-shape-stage="release"] .bridge-shape { transform: scale(1.15); opacity: 0; }
-.chapter-transition.is-records[data-shape-stage="release"] .bridge-shape { transform: scale(0.5); opacity: 0; }
-.chapter-transition.is-timeline[data-shape-stage="release"] .bridge-shape { transform: translateY(-14px) scale(0.92); opacity: 0; }
-.chapter-transition.is-barrier[data-shape-stage="release"] .bridge-shape { transform: scale(1.3); opacity: 0; }
-.chapter-transition.is-letter[data-shape-stage="release"] .bridge-shape { transform: translateY(6px) scale(0.9); opacity: 0; }
-.chapter-transition.is-response[data-shape-stage="release"] .bridge-shape { transform: scale(0.7); opacity: 0; }
-.chapter-transition.is-reply[data-shape-stage="release"] .bridge-shape { transform: scale(1.5); opacity: 0; }
+/* Semantic-specific exit animation variations for the transition image slot */
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-initializing  { transform: scaleY(0.1); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-calibration    { transform: scale(1.2) rotate(10deg); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-emotional-signal { transform: scale(0.7); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-synchronization { transform: translateY(-20px) scale(0.9); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-decoding        { transform: scale(1.4); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-memory          { transform: translateY(20px) scale(0.9); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-connection      { transform: scale(0.6); opacity: 0; }
+.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-question        { transform: scale(1.5); opacity: 0; }
 
 .chapter-transition__copy {
   position: relative;

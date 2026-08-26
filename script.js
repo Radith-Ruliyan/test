@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
    Interaction Architecture, Mechanics & Geometry Controller (AI #3 Recovery)
    ========================================================================== */
@@ -288,91 +288,37 @@ const geometryManager = {
    -------------------------------------------------------------------------- */
 const SVGNS = "http://www.w3.org/2000/svg";
 
-const SHAPE_LIBRARY = {
-  // hero: "signal detected" -> a scanning eye completing (lid, iris, pupil)
-  hero: [
-    { tag: "path", cls: "shape-line", attrs: { d: "M40,100 Q100,58 160,100 Q100,142 40,100 Z" } },
-    { tag: "circle", cls: "shape-line", attrs: { cx: 100, cy: 100, r: 21 } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 7 } }
-  ],
-  // connection: two signals rotary-tuning into a single locked link
-  connection: [
-    { tag: "circle", cls: "shape-line", attrs: { cx: 54, cy: 100, r: 15 } },
-    { tag: "circle", cls: "shape-line", attrs: { cx: 146, cy: 100, r: 15 } },
-    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M69,100 L131,100" } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 5 } }
-  ],
-  // records: radar lens locking onto a target reticle
-  records: [
-    { tag: "circle", cls: "shape-line", attrs: { cx: 100, cy: 100, r: 52 } },
-    { tag: "circle", cls: "shape-line", attrs: { cx: 100, cy: 100, r: 27 } },
-    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M100,32 L100,50 M100,150 L100,168 M32,100 L50,100 M150,100 L168,100" } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 4 } }
-  ],
-  // timeline: a vertical journey path marked by milestones
-  timeline: [
-    { tag: "path", cls: "shape-line", attrs: { d: "M100,32 L100,168" } },
-    { tag: "circle", cls: "shape-dot", attrs: { cx: 100, cy: 32, r: 5 } },
-    { tag: "circle", cls: "shape-dot", attrs: { cx: 100, cy: 78, r: 5 } },
-    { tag: "circle", cls: "shape-dot", attrs: { cx: 100, cy: 122, r: 5 } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 168, r: 7 } }
-  ],
-  // barrier: an A.T. Field hexagon locking into place
-  barrier: [
-    { tag: "path", cls: "shape-line shape-line--fill", attrs: { d: "M100,42 L152,71 L152,129 L100,158 L48,129 L48,71 Z" } },
-    { tag: "path", cls: "shape-line", attrs: { d: "M100,42 L152,71 L152,129 L100,158 L48,129 L48,71 Z" } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 100, r: 5 } }
-  ],
-  // letter: an envelope assembling from its fold lines, then sealed
-  letter: [
-    { tag: "path", cls: "shape-line", attrs: { d: "M42,66 L158,66 L158,146 L42,146 Z" } },
-    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M42,66 L100,112 L158,66" } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 100, cy: 136, r: 5 } }
-  ],
-  // response: a question forming inside a speech bubble
-  response: [
-    { tag: "path", cls: "shape-line", attrs: { d: "M46,58 Q38,58 38,68 L38,116 Q38,126 48,126 L72,126 L92,150 L96,126 L152,126 Q162,126 162,116 L162,68 Q162,58 152,58 Z" } },
-    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M84,80 Q84,66 100,66 Q116,66 116,80 Q116,90 104,96 Q98,99 98,108" } },
-    { tag: "circle", cls: "shape-dot shape-dot--accent", attrs: { cx: 98, cy: 120, r: 4 } }
-  ],
-  // reply: two answered signals resolving into one shared heart
-  reply: [
-    { tag: "path", cls: "shape-line shape-line--fill", attrs: { d: "M100,152 C62,124 34,96 34,68 C34,44 55,30 76,38 C90,43 98,54 100,64 C102,54 110,43 124,38 C145,30 166,44 166,68 C166,96 138,124 100,152 Z" } },
-    { tag: "path", cls: "shape-line shape-line--accent", attrs: { d: "M100,152 C62,124 34,96 34,68 C34,44 55,30 76,38 C90,43 98,54 100,64 C102,54 110,43 124,38 C145,30 166,44 166,68 C166,96 138,124 100,152 Z" } }
-  ]
+const TRANSITION_CONFIG = {
+  initializing: { file: "transition-01-eye-scanner.png", alt: "Eye Scanner", label: "INITIALIZING" },
+  calibration: { file: "transition-03-target-locked.png", alt: "Target Locked", label: "CALIBRATION" },
+  "emotional-signal": { file: "transition-04-pulse-heart.png", alt: "Pulse Heart", label: "EMOTIONAL SIGNAL" },
+  synchronization: { file: "transition-05-dual-node-link.png", alt: "Dual Node Link", label: "SYNCHRONIZATION" },
+  decoding: { file: "transition-06-message-packet.png", alt: "Message Packet", label: "DECODING" },
+  memory: { file: "transition-07-polaroid-data.png", alt: "Polaroid Data", label: "MEMORY" },
+  connection: { file: "transition-08-merge-pulse.png", alt: "Merge Pulse", label: "CONNECTION" },
+  question: { file: "transition-09-question-dialogue.png", alt: "Question Dialogue", label: "QUESTION" }
+};
+
+const SCENE_TRANSITION_MAP = {
+  hero: "initializing",
+  connection: "calibration",
+  records: "emotional-signal",
+  timeline: "synchronization",
+  barrier: "decoding",
+  letter: "memory",
+  response: "question",
+  reply: "connection"
 };
 
 const transitionForms = {
   container: null,
-
   init() {
     this.container = $("#bridgeShape");
   },
-
   render(sceneName) {
-    if (!this.container) this.init();
-    if (!this.container) return;
-    const shapeDefs = SHAPE_LIBRARY[sceneName];
-    this.container.innerHTML = "";
-    if (!shapeDefs) return;
-
-    shapeDefs.forEach((def, i) => {
-      const el = document.createElementNS(SVGNS, def.tag);
-      Object.entries(def.attrs).forEach(([key, value]) => el.setAttribute(key, String(value)));
-      el.setAttribute("class", def.cls);
-      // Stagger each element slightly so the object visibly assembles
-      // piece by piece rather than popping in all at once.
-      el.style.transitionDelay = `${i * 70}ms`;
-      this.container.appendChild(el);
-
-      if (def.tag === "path") {
-        // Measure the real path length so the draw-in offset is precise.
-        try {
-          const len = el.getTotalLength();
-          el.style.setProperty("--len", String(Math.max(len, 1)));
-        } catch (err) { /* ignore in unsupported environments */ }
-      }
-    });
+    if (this.container) {
+      this.container.innerHTML = "";
+    }
   }
 };
 
@@ -456,28 +402,69 @@ const sceneManager = {
 
     if (transitionOverlay && nextScene !== "boot") {
       const nextIndex = this.scenes.indexOf(nextScene);
-      if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
-      if (transitionText) transitionText.textContent = `PHASE 0${nextIndex} / INITIALIZING`;
+      const semanticId = SCENE_TRANSITION_MAP[nextScene];
+      const config = semanticId ? TRANSITION_CONFIG[semanticId] : null;
 
-      const DRAW_MS = 720;   // object assembles, synced to interaction that triggered it
-      const HOLD_MS = 400;   // object sits complete and recognizable (300-500ms)
-      const RELEASE_MS = 360; // object morphs/dissolves toward the next scene
+      let drawMs = 720;   // default or themed draw duration
+      let holdMs = 400;   // default or themed hold duration
+      let releaseMs = 360; // default or themed release duration
 
-      // 1. Build the meaningful object for the scene we're entering and
-      //    start its draw-in the instant the user's action fires the
-      //    transition (never before the interaction completes).
+      const transitionImg = $("#transitionAssetImg");
+      const transitionSlot = $(".transition-asset-slot");
+
+      if (!config) {
+        // Neutral transition: shorter duration, no PNG.
+        // Fires only for scenes with no semantic mapping — warn clearly.
+        drawMs = 300;
+        holdMs = 200;
+        releaseMs = 300;
+
+        console.warn(`[TransitionSystem] No semantic ID found for scene: "${nextScene}". Neutral transition used.`);
+
+        if (transitionImg) {
+          transitionImg.removeAttribute("src");
+          transitionImg.removeAttribute("alt");
+          transitionImg.style.display = "none";
+        }
+        if (transitionSlot) {
+          transitionSlot.className = "transition-asset-slot is-neutral";
+        }
+        if (transitionOverlay) {
+          transitionOverlay.className = "chapter-transition is-active is-neutral";
+        }
+        if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
+        if (transitionText) transitionText.textContent = `PHASE 0${nextIndex}`;
+      } else {
+        // Themed transition using the single image slot
+        if (transitionImg) {
+          transitionImg.src = `assets/transition/${config.file}`;
+          transitionImg.alt = config.alt;
+          transitionImg.style.display = "block";
+        }
+        if (transitionSlot) {
+          // Reset classes and apply current semantic ID class
+          transitionSlot.className = "transition-asset-slot";
+          transitionSlot.classList.add(`is-${semanticId}`);
+        }
+        if (transitionOverlay) {
+          transitionOverlay.className = "chapter-transition is-active";
+          transitionOverlay.classList.add(`is-${nextScene}`);
+        }
+        if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
+        // Only display logical phase number to avoid duplicate title labels
+        if (transitionText) transitionText.textContent = `PHASE 0${nextIndex}`;
+      }
+
       transitionForms.render(nextScene);
       transitionOverlay.dataset.shapeStage = "draw";
-      transitionOverlay.classList.add("is-active", `is-${nextScene}`);
       if (transitionBar) transitionBar.style.width = "100%";
 
-      // 2. Object finishes forming and is held fully visible/recognizable.
+      // 2. Object finishes forming and is held
       const holdTimer = window.setTimeout(() => {
         transitionOverlay.dataset.shapeStage = "hold";
-      }, DRAW_MS);
+      }, drawMs);
 
-      // 3. Swap the actual scenes underneath while the object is held, then
-      //    begin its morph/dissolve as the next scene becomes visible.
+      // 3. Swap scenes
       const swapTimer = window.setTimeout(() => {
         if (currentEl) {
           currentEl.classList.remove("is-active");
@@ -486,7 +473,7 @@ const sceneManager = {
         if (nextEl) {
           nextEl.classList.add("is-active");
           nextEl.setAttribute("aria-hidden", "false");
-          nextEl.scrollTop = 0; // Scene-local overflow reset
+          nextEl.scrollTop = 0;
         }
 
         this.currentScene = nextScene;
@@ -500,14 +487,20 @@ const sceneManager = {
         transitionOverlay.dataset.shapeStage = "release";
 
         const releaseTimer = window.setTimeout(() => {
-          transitionOverlay.classList.remove("is-active", `is-${nextScene}`);
+          transitionOverlay.classList.remove("is-active");
+          transitionOverlay.classList.remove(`is-${nextScene}`);
+          transitionOverlay.classList.remove("is-neutral");
           transitionOverlay.dataset.shapeStage = "";
           if (transitionBar) transitionBar.style.width = "0%";
           if (transitionForms.container) transitionForms.container.innerHTML = "";
+          if (transitionImg) {
+            transitionImg.removeAttribute("src");
+            transitionImg.removeAttribute("alt");
+          }
           this.isTransitioning = false;
-        }, RELEASE_MS);
+        }, releaseMs);
         this._activeTimers.push(releaseTimer);
-      }, DRAW_MS + HOLD_MS);
+      }, drawMs + holdMs);
 
       this._activeTimers.push(holdTimer, swapTimer);
     } else {
