@@ -34,6 +34,104 @@ const siteConfig = {
   }
 };
 
+const transitionConfig = {
+  hero: [
+    {
+      id: "initializing",
+      title: "PHASE 01 / INITIALIZING",
+      src: "assets/transition/transition-01-eye-scanner.png",
+      animation: "eye-scanner",
+      duration: 1600
+    }
+  ],
+  connection: [
+    {
+      id: "authentication",
+      title: "PHASE 02 / AUTHENTICATION",
+      src: "assets/transition/transition-02-biometric-pattern.png",
+      animation: "biometric-pattern",
+      duration: 1600
+    }
+  ],
+  records: [
+    {
+      id: "calibration",
+      title: "PHASE 03 / CALIBRATION",
+      src: "assets/transition/transition-03-target-locked.png",
+      animation: "target-locked",
+      duration: 1600
+    }
+  ],
+  timeline: [
+    {
+      id: "signal-detected",
+      title: "PHASE 04 / SIGNAL DETECTED",
+      src: "assets/transition/transition-04-pulse-heart.png",
+      animation: "pulse-heart",
+      duration: 1600
+    }
+  ],
+  barrier: [
+    {
+      id: "synchronization",
+      title: "PHASE 05 / SYNCHRONIZATION",
+      src: "assets/transition/transition-05-dual-node-link.png",
+      animation: "dual-node-link",
+      duration: 1600
+    }
+  ],
+  letter: [
+    {
+      id: "decoding",
+      title: "PHASE 06 / DECODING",
+      src: "assets/transition/transition-06-message-packet.png",
+      animation: "message-packet",
+      duration: 1600
+    }
+  ],
+  response: [
+    {
+      id: "memory",
+      title: "PHASE 07 / MEMORY",
+      src: "assets/transition/transition-07-polaroid-data.png",
+      animation: "polaroid-data",
+      duration: 1600
+    }
+  ],
+  reply: [
+    {
+      id: "connection",
+      title: "PHASE 08 / CONNECTION",
+      src: "assets/transition/transition-08-merge-pulse.png",
+      animation: "merge-pulse",
+      duration: 1300
+    },
+    {
+      id: "question",
+      title: "PHASE 09 / QUESTION",
+      src: "assets/transition/transition-09-question-dialogue.png",
+      animation: "question-dialogue",
+      duration: 1300
+    },
+    {
+      id: "final-confirmation",
+      title: "PHASE 10 / FINAL CONFIRMATION",
+      src: "assets/transition/transition-10-gate-unlocked.png",
+      animation: "gate-unlocked",
+      duration: 1600
+    }
+  ]
+};
+
+function preloadTransitionImages() {
+  Object.values(transitionConfig).forEach(chain => {
+    chain.forEach(conf => {
+      const img = new Image();
+      img.src = conf.src;
+    });
+  });
+}
+
 /* --------------------------------------------------------------------------
    UTILITY HELPERS & QUERY SELECTORS
    -------------------------------------------------------------------------- */
@@ -350,39 +448,59 @@ const sceneManager = {
     if (currentModule?.exit) currentModule.exit();
     hintController.detach();
 
-    if (transitionOverlay && nextScene !== "boot") {
-      const nextIndex = this.scenes.indexOf(nextScene);
-      if (transitionNum) transitionNum.textContent = String(nextIndex).padStart(2, "0");
-      if (transitionText) transitionText.textContent = `PHASE 0${nextIndex} / INITIALIZING`;
+    const configs = transitionConfig[nextScene];
 
-      transitionOverlay.classList.add("is-active", `is-${nextScene}`);
+    if (transitionOverlay && nextScene !== "boot" && configs && configs.length > 0) {
+      transitionOverlay.classList.add("is-active");
       if (transitionBar) transitionBar.style.width = "100%";
 
-      window.setTimeout(() => {
-        if (currentEl) {
-          currentEl.classList.remove("is-active");
-          currentEl.setAttribute("aria-hidden", "true");
-        }
-        if (nextEl) {
-          nextEl.classList.add("is-active");
-          nextEl.setAttribute("aria-hidden", "false");
-          nextEl.scrollTop = 0; // Scene-local overflow reset
-        }
+      let currentChainIndex = 0;
 
-        this.currentScene = nextScene;
-        this.updateChrome(nextScene);
+      const playNextInChain = () => {
+        const conf = configs[currentChainIndex];
+        const img = $("#transitionImage");
 
-        const nextModule = sceneModules[nextScene];
-        if (nextModule?.enter) nextModule.enter();
-        if (nextModule?.recalculateGeometry) nextModule.recalculateGeometry();
-        hintController.attach(nextEl);
+        if (img) {
+          img.src = conf.src;
+          img.alt = conf.title;
+          img.className = `transition-img--${conf.animation}`;
+        }
+        if (transitionNum) transitionNum.textContent = String(this.scenes.indexOf(nextScene)).padStart(2, "0");
+        if (transitionText) transitionText.textContent = conf.title;
 
         window.setTimeout(() => {
-          transitionOverlay.classList.remove("is-active", `is-${nextScene}`);
-          if (transitionBar) transitionBar.style.width = "0%";
-          this.isTransitioning = false;
-        }, 350);
-      }, 700);
+          currentChainIndex++;
+          if (currentChainIndex < configs.length) {
+            playNextInChain();
+          } else {
+            if (currentEl) {
+              currentEl.classList.remove("is-active");
+              currentEl.setAttribute("aria-hidden", "true");
+            }
+            if (nextEl) {
+              nextEl.classList.add("is-active");
+              nextEl.setAttribute("aria-hidden", "false");
+              nextEl.scrollTop = 0;
+            }
+
+            this.currentScene = nextScene;
+            this.updateChrome(nextScene);
+
+            const nextModule = sceneModules[nextScene];
+            if (nextModule?.enter) nextModule.enter();
+            if (nextModule?.recalculateGeometry) nextModule.recalculateGeometry();
+            hintController.attach(nextEl);
+
+            window.setTimeout(() => {
+              transitionOverlay.classList.remove("is-active");
+              if (transitionBar) transitionBar.style.width = "0%";
+              this.isTransitioning = false;
+            }, 400);
+          }
+        }, conf.duration);
+      };
+
+      playNextInChain();
     } else {
       if (currentEl) {
         currentEl.classList.remove("is-active");
@@ -408,13 +526,21 @@ const sceneManager = {
 /* --------------------------------------------------------------------------
    SCENE MODULE 0: BOOT (CRITICAL FINGERPRINT SCANNER PRESERVED)
    -------------------------------------------------------------------------- */
+const HOLD_DURATION_MS = 900;
+
 const bootScene = {
   enterButton: null,
   bootBar: null,
   bootPercent: null,
   bootLog: null,
-  holdTimer: null,
   progress: 0,
+  holdRAF: null,
+  holdStartTime: null,
+  activePointerId: null,
+  isHolding: false,
+  isComplete: false,
+  readyTimer: null,
+  successTimer: null,
 
   init() {
     this.enterButton = $("#enterButton");
@@ -422,70 +548,129 @@ const bootScene = {
     this.bootPercent = $("#bootPercent");
     this.bootLog = $("#bootLog");
 
-    let calib = 0;
-    const interval = setInterval(() => {
-      calib += 10;
-      if (this.bootBar) this.bootBar.style.width = `${calib}%`;
-      if (this.bootPercent) this.bootPercent.textContent = String(calib).padStart(2, "0");
-      if (calib >= 100) {
-        clearInterval(interval);
-        if (this.bootLog) this.bootLog.textContent = "AUTHENTICATION REQUIRED / PLACE FINGERPRINT";
-        if (this.enterButton) this.enterButton.disabled = false;
-      }
-    }, 45);
+    // Calibration must sit at a silent, untouched 0% until the user
+    // actually presses and holds the fingerprint scanner.
+    this.setProgress(0);
+
+    // Short "system ready" delay before the scanner accepts input. This
+    // does not touch the calibration progress bar/number in any way.
+    this.readyTimer = window.setTimeout(() => {
+      if (this.bootLog) this.bootLog.textContent = "AUTHENTICATION REQUIRED / PLACE FINGERPRINT";
+      if (this.enterButton) this.enterButton.disabled = false;
+    }, 450);
 
     this.setupHold();
+  },
+
+  setProgress(value) {
+    const clamped = Math.max(0, Math.min(100, value));
+    this.progress = clamped;
+    if (this.bootBar) this.bootBar.style.width = `${clamped}%`;
+    if (this.bootPercent) this.bootPercent.textContent = String(Math.round(clamped)).padStart(2, "0");
+  },
+
+  cancelFrame() {
+    if (this.holdRAF !== null) {
+      cancelAnimationFrame(this.holdRAF);
+      this.holdRAF = null;
+    }
   },
 
   setupHold() {
     if (!this.enterButton) return;
     const btn = this.enterButton;
 
-    const start = () => {
-      if (btn.disabled) return;
-      btn.classList.add("is-holding");
-      soundSystem.playInterface();
-      this.holdTimer = setInterval(() => {
-        this.progress += 4;
-        if (this.bootBar) this.bootBar.style.width = `${this.progress}%`;
-        if (this.bootPercent) this.bootPercent.textContent = String(this.progress).padStart(2, "0");
+    const tick = (now) => {
+      if (!this.isHolding) return;
+      const elapsed = now - this.holdStartTime;
+      const pct = (elapsed / HOLD_DURATION_MS) * 100;
 
-        if (this.progress >= 100) {
-          clearInterval(this.holdTimer);
-          btn.classList.remove("is-holding");
-          btn.disabled = true;
-          if (this.bootLog) this.bootLog.textContent = "SIGNAL VERIFIED / ACCESS GRANTED";
-          announce("Authentication complete. Entering private signal.");
-          window.setTimeout(() => {
-            sceneManager.advanceTo("hero");
-          }, 450);
-        }
-      }, 35);
+      if (pct >= 100) {
+        this.setProgress(100);
+        this.completeHold();
+        return;
+      }
+
+      this.setProgress(pct);
+      this.holdRAF = requestAnimationFrame(tick);
     };
 
-    const end = () => {
-      if (this.progress < 100) {
-        clearInterval(this.holdTimer);
-        this.progress = 0;
-        btn.classList.remove("is-holding");
-        if (this.bootBar) this.bootBar.style.width = "100%";
-        if (this.bootPercent) this.bootPercent.textContent = "100";
+    const start = (event) => {
+      // Primary pointer/button only, and only one hold at a time.
+      if (btn.disabled || this.isHolding || this.isComplete) return;
+      if (event.button !== undefined && event.button !== 0) return;
+
+      this.isHolding = true;
+      this.activePointerId = event.pointerId;
+      try { btn.setPointerCapture(event.pointerId); } catch (err) { /* no-op */ }
+
+      btn.classList.add("is-holding");
+      soundSystem.playInterface();
+
+      this.holdStartTime = performance.now();
+      this.setProgress(0);
+      this.cancelFrame();
+      this.holdRAF = requestAnimationFrame(tick);
+    };
+
+    const cancelHold = (event) => {
+      if (event && event.pointerId !== undefined && this.activePointerId !== null && event.pointerId !== this.activePointerId) {
+        return;
       }
+      if (!this.isHolding) return;
+
+      this.isHolding = false;
+      this.activePointerId = null;
+      this.cancelFrame();
+      btn.classList.remove("is-holding");
+      this.setProgress(0);
     };
 
     btn.addEventListener("pointerdown", start);
-    btn.addEventListener("pointerup", end);
-    btn.addEventListener("pointerleave", end);
-    btn.addEventListener("pointercancel", end);
+    btn.addEventListener("pointerup", cancelHold);
+    btn.addEventListener("pointercancel", cancelHold);
+    btn.addEventListener("lostpointercapture", cancelHold);
+    btn.addEventListener("contextmenu", (event) => event.preventDefault());
+  },
+
+  completeHold() {
+    if (this.isComplete) return;
+    this.isComplete = true;
+    this.isHolding = false;
+    this.activePointerId = null;
+    this.cancelFrame();
+
+    const btn = this.enterButton;
+    if (btn) {
+      btn.classList.remove("is-holding");
+      btn.disabled = true;
+    }
+    if (this.bootLog) this.bootLog.textContent = "SIGNAL VERIFIED / ACCESS GRANTED";
+    announce("Authentication complete. Entering private signal.");
+
+    this.successTimer = window.setTimeout(() => {
+      sceneManager.advanceTo("hero");
+    }, 450);
   },
 
   enter() {},
   exit() {
-    clearInterval(this.holdTimer);
+    this.cancelFrame();
+    window.clearTimeout(this.readyTimer);
+    window.clearTimeout(this.successTimer);
   },
   reset() {
+    this.cancelFrame();
+    window.clearTimeout(this.successTimer);
     this.progress = 0;
-    if (this.enterButton) this.enterButton.disabled = false;
+    this.isHolding = false;
+    this.isComplete = false;
+    this.activePointerId = null;
+    if (this.enterButton) {
+      this.enterButton.disabled = false;
+      this.enterButton.classList.remove("is-holding");
+    }
+    this.setProgress(0);
   }
 };
 
@@ -1600,6 +1785,7 @@ function setupAmbientCanvas() {
    -------------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   applyConfig();
+  preloadTransitionImages();
   inputModeTracker.init();
   soundSystem.init();
   sceneManager.init();
