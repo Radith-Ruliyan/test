@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
    Interaction Architecture, Mechanics & Geometry Controller (AI #3 Recovery)
    ========================================================================== */
@@ -55,29 +55,60 @@ function applyConfig() {
 }
 
 const decryptTimers = new WeakMap();
+/**
+ * Scrambles-in `finalText` onto `element`. Returns a Promise that resolves
+ * only once the final text has actually been committed to the element,
+ * so callers can await full completion of the type-in animation.
+ */
 function decryptText(element, finalText) {
-  if (!element) return;
+  if (!element) return Promise.resolve();
   const oldTimer = decryptTimers.get(element);
   if (oldTimer) clearInterval(oldTimer);
   if (reduceMotion.matches) {
     element.textContent = finalText;
-    return;
+    return Promise.resolve();
   }
   const chars = "01AXREI#?+<>/";
   let iteration = 0;
-  const timer = window.setInterval(() => {
-    element.textContent = [...finalText].map((char, index) => {
-      if (char === " ") return " ";
-      return index < iteration ? char : chars[Math.floor(Math.random() * chars.length)];
-    }).join("");
-    iteration += 2.4;
-    if (iteration >= finalText.length) {
-      clearInterval(timer);
-      decryptTimers.delete(element);
-      element.textContent = finalText;
-    }
-  }, 20);
-  decryptTimers.set(element, timer);
+  return new Promise((resolve) => {
+    const timer = window.setInterval(() => {
+      element.textContent = [...finalText].map((char, index) => {
+        if (char === " ") return " ";
+        return index < iteration ? char : chars[Math.floor(Math.random() * chars.length)];
+      }).join("");
+      iteration += 2.4;
+      if (iteration >= finalText.length) {
+        clearInterval(timer);
+        decryptTimers.delete(element);
+        element.textContent = finalText;
+        resolve();
+      }
+    }, 20);
+    decryptTimers.set(element, timer);
+  });
+}
+
+/**
+ * Resolves once the given font specs are loaded (or `document.fonts.ready`
+ * fires), with a safety timeout so a failed Google Fonts load can never
+ * lock an interaction forever.
+ */
+function waitForFonts(fontSpecs, timeoutMs = 2000) {
+  let loadPromise;
+  try {
+    const loaders = (fontSpecs || []).map((spec) => {
+      try {
+        return document.fonts.load(spec);
+      } catch (err) {
+        return Promise.resolve();
+      }
+    });
+    loadPromise = Promise.all([document.fonts.ready, ...loaders]).catch(() => {});
+  } catch (err) {
+    loadPromise = Promise.resolve();
+  }
+  const timeoutPromise = new Promise((resolve) => window.setTimeout(resolve, timeoutMs));
+  return Promise.race([loadPromise, timeoutPromise]);
 }
 
 /* --------------------------------------------------------------------------
@@ -1108,12 +1139,14 @@ const recordsScene = {
   radar: null,
   plane: null,
   lens: null,
+  progressPathEl: null,
   echoes: [],
   recovered: new Set(),
-  currentIndex: 0,
-  lensX: 50,
-  lensY: 50,
-  isScanning: false,
+
+  // Fixed zigzag waypoints (percent-of-radar space). Index 0 is the
+  // permanent start; the rest line up 1:1 with the five checkpoints, the
+  // SVG path, and the recordConstellation geometry.
+  START: { x: 50, y: 50 },
   coords: [
     { x: 25, y: 35 },
     { x: 45, y: 70 },
@@ -1122,22 +1155,43 @@ const recordsScene = {
     { x: 85, y: 40 }
   ],
 
+  currentIndex: 0,               // which record is displayed in the card
+  currentTargetIndex: 0,         // index (0-4) of the next checkpoint to reach
+  currentSegmentProgress: 0,     // 0..1 progress along the active segment
+  isDragging: false,
+  isCheckpointLoading: false,
+  activePointerId: null,
+  lastPointerX: 0,
+  lastPointerY: 0,
+  lensX: 50,
+  lensY: 50,
+  rafId: null,
+  needsPaint: false,
+  resetToken: 0, // bumped on reset() so stale async checkpoint callbacks bail out
+
+  get points() {
+    return [this.START, ...this.coords];
+  },
+
   init() {
     this.radar = $("#recordRadar");
     this.plane = $("#radarPlane");
     this.lens = $("#recordLens");
+    this.progressPathEl = $("#recordConstellationProgress");
     this.echoes = $$(".radar__echo");
 
-    if (this.radar) {
-      this.radar.addEventListener("pointerdown", (e) => this.onPointerDown(e));
-      window.addEventListener("pointermove", (e) => this.onPointerMove(e));
-      window.addEventListener("pointerup", () => { this.isScanning = false; });
+    if (this.lens) {
+      this.lens.addEventListener("pointerdown", (e) => this.onPointerDown(e));
+      this.lens.addEventListener("pointermove", (e) => this.onPointerMove(e));
+      this.lens.addEventListener("pointerup", (e) => this.onPointerEnd(e));
+      this.lens.addEventListener("pointercancel", (e) => this.onPointerEnd(e));
+      this.lens.addEventListener("lostpointercapture", (e) => this.onPointerEnd(e));
     }
 
     this.echoes.forEach((echo) => {
       echo.addEventListener("click", () => {
         const idx = parseInt(echo.dataset.recordIndex, 10);
-        this.selectEcho(idx);
+        this.onEchoClick(idx);
       });
     });
 
@@ -1149,6 +1203,7 @@ const recordsScene = {
     }
 
     this.positionEchoes();
+    this.paint();
   },
 
   positionEchoes() {
@@ -1159,69 +1214,160 @@ const recordsScene = {
     });
   },
 
+  // Percent coordinates keep the SVG path, checkpoints and lens aligned
+  // across viewport sizes; re-run positioning + repaint on resize/rotate.
   recalculateGeometry() {
     this.positionEchoes();
+    this.paint();
+  },
+
+  toSvg(pt) {
+    // recordRadarField viewBox is 300x200 — same normalized plane as the
+    // 0-100 percent coordinates used everywhere else.
+    return { x: (pt.x / 100) * 300, y: (pt.y / 100) * 200 };
+  },
+
+  currentLensPercent() {
+    const start = this.points[this.currentTargetIndex];
+    const end = this.points[this.currentTargetIndex + 1] || start;
+    const t = this.currentSegmentProgress;
+    return {
+      x: start.x + (end.x - start.x) * t,
+      y: start.y + (end.y - start.y) * t
+    };
   },
 
   onPointerDown(e) {
-    this.isScanning = true;
-    this.onPointerMove(e);
+    if (this.isCheckpointLoading || this.currentTargetIndex >= this.coords.length) return;
+    this.isDragging = true;
+    this.activePointerId = e.pointerId;
+    this.lastPointerX = e.clientX;
+    this.lastPointerY = e.clientY;
+    try { this.lens.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     hintController.notifyProgress();
+    e.preventDefault();
   },
 
   onPointerMove(e) {
-    if (!this.isScanning || !this.radar) return;
+    if (!this.isDragging || e.pointerId !== this.activePointerId) return;
+    if (this.isCheckpointLoading || !this.radar) return;
+
     const rect = this.radar.getBoundingClientRect();
-    this.lensX = clamp(((e.clientX - rect.left) / rect.width) * 100, 8, 92);
-    this.lensY = clamp(((e.clientY - rect.top) / rect.height) * 100, 8, 92);
+    if (!rect.width || !rect.height) return;
+
+    const dxPercent = ((e.clientX - this.lastPointerX) / rect.width) * 100;
+    const dyPercent = ((e.clientY - this.lastPointerY) / rect.height) * 100;
+    this.lastPointerX = e.clientX;
+    this.lastPointerY = e.clientY;
+
+    const start = this.points[this.currentTargetIndex];
+    const end = this.points[this.currentTargetIndex + 1];
+    if (!start || !end) return;
+
+    const segX = end.x - start.x;
+    const segY = end.y - start.y;
+    const segLen = Math.hypot(segX, segY) || 1;
+    const unitX = segX / segLen;
+    const unitY = segY / segLen;
+
+    // Project the pointer delta onto the segment direction so sideways
+    // drag is ignored — only along-the-path movement advances progress.
+    const projected = dxPercent * unitX + dyPercent * unitY;
+    const progressDelta = projected / segLen;
+
+    // Small backward drag is allowed within the active segment, but it
+    // can never go below 0 (i.e. back past the already-completed checkpoint).
+    this.currentSegmentProgress = clamp(this.currentSegmentProgress + progressDelta, 0, 1);
+    this.scheduleFrame();
+
+    if (this.currentSegmentProgress >= 1) {
+      this.currentSegmentProgress = 1;
+      // Stop right at the checkpoint — remaining pointer motion this drag
+      // must never carry over into the next segment.
+      this.endDrag();
+      this.checkProximity();
+    }
+  },
+
+  onPointerEnd(e) {
+    if (e && e.pointerId !== undefined && e.pointerId !== this.activePointerId) return;
+    this.endDrag();
+  },
+
+  endDrag() {
+    if (this.activePointerId !== null && this.lens) {
+      try { this.lens.releasePointerCapture(this.activePointerId); } catch (err) { /* ignore */ }
+    }
+    this.isDragging = false;
+    this.activePointerId = null;
+  },
+
+  scheduleFrame() {
+    if (this.needsPaint) return;
+    this.needsPaint = true;
+    this.rafId = window.requestAnimationFrame(() => {
+      this.needsPaint = false;
+      this.paint();
+    });
+  },
+
+  // Keeps the lens and the progress route moving together every frame.
+  paint() {
+    const p = this.currentLensPercent();
+    this.lensX = p.x;
+    this.lensY = p.y;
 
     if (this.lens) {
       this.lens.style.left = `${this.lensX}%`;
       this.lens.style.top = `${this.lensY}%`;
     }
 
-    this.checkProximity();
+    this.paintProgressPath();
   },
 
+  paintProgressPath() {
+    if (!this.progressPathEl) return;
+    const pts = this.points.slice(0, this.currentTargetIndex + 1).map((pt) => this.toSvg(pt));
+    pts.push(this.toSvg(this.currentLensPercent()));
+    const d = pts.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x},${pt.y}`).join(" ");
+    this.progressPathEl.setAttribute("d", d);
+  },
+
+  // Only ever checks the single next checkpoint in the required sequence —
+  // future checkpoints can never be reached, skipped to, or recovered here.
   checkProximity() {
-    this.coords.forEach((pt, idx) => {
-      const dist = Math.hypot(this.lensX - pt.x, this.lensY - pt.y);
-      const echo = this.echoes[idx];
-      if (!echo) return;
-
-      if (dist <= 13) {
-        echo.classList.add("is-found");
-        if (!this.recovered.has(idx)) {
-          this.recoverEcho(idx);
-        }
-      }
-    });
-  },
-
-  recoverEcho(idx) {
-    this.recovered.add(idx);
-    const echo = this.echoes[idx];
-    if (echo) echo.classList.add("is-decrypted");
-
-    this.selectEcho(idx);
-    soundSystem.playInterface();
-
-    const countEl = $("#recordArchiveCount");
-    if (countEl) countEl.textContent = `${this.recovered.size} / 5`;
-
-    if (this.recovered.size === 5) {
-      const continueBtn = $("#recordArchiveContinue");
-      if (continueBtn) continueBtn.hidden = false;
-      announce("All personal records recovered. Ready to proceed to timeline.");
+    if (this.isCheckpointLoading) return;
+    const idx = this.currentTargetIndex;
+    if (idx >= this.coords.length) return;
+    if (this.currentSegmentProgress >= 1 && !this.recovered.has(idx)) {
+      this.arriveAtCheckpoint(idx);
     }
   },
 
-  selectEcho(idx) {
-    this.currentIndex = idx;
-    this.echoes.forEach((e, i) => e.classList.toggle("is-current", i === idx));
+  onEchoClick(idx) {
+    // Future/unreached checkpoints can't be selected, recovered, or skipped
+    // to by clicking — they only unlock by dragging the lens along the path.
+    if (!this.recovered.has(idx)) return;
+    // Re-reading an already-completed checkpoint never touches progress,
+    // the active target, or the progress route.
+    this.viewRecord(idx);
+  },
+
+  async arriveAtCheckpoint(idx) {
+    const token = this.resetToken;
+    this.isCheckpointLoading = true;
+    this.isDragging = false;
+    this.currentSegmentProgress = 1;
+    this.paint();
+
+    if (this.lens) this.lens.classList.add("is-loading");
+    const statusEl = $("#recordStatus");
+    if (statusEl) statusEl.textContent = `DECRYPTING RECORD 0${idx + 1}...`;
+    announce(`Decrypting record ${idx + 1}.`);
 
     const rec = siteConfig.records[idx];
-    if (!rec) return;
+    this.currentIndex = idx;
+    this.echoes.forEach((e, i) => e.classList.toggle("is-current", i === idx));
 
     const numEl = $("#recordNumber");
     const codeEl = $("#recordCode");
@@ -1234,6 +1380,86 @@ const recordsScene = {
     if (codeEl) codeEl.textContent = rec.code;
     if (counterEl) counterEl.textContent = `RECORD 0${idx + 1} / 05`;
     if (titleEl) titleEl.textContent = rec.title;
+    if (card) {
+      card.classList.add("is-decrypting");
+      window.setTimeout(() => card.classList.remove("is-decrypting"), 500);
+    }
+
+    // Wait for the type-in animation, the webfonts it renders with, and a
+    // minimum checkpoint pause — all three must finish before unlocking.
+    const minimumCheckpointDelay = new Promise((resolve) => {
+      window.setTimeout(resolve, 700 + Math.random() * 200);
+    });
+    const fontsReadyPromise = waitForFonts([
+      '600 12px "Archivo Black"',
+      '400 12px "IBM Plex Mono"',
+      '400 12px "Manrope"'
+    ]);
+    const textReady = textEl ? decryptText(textEl, rec.text) : Promise.resolve();
+
+    await Promise.all([textReady, fontsReadyPromise, minimumCheckpointDelay]);
+
+    // A reset() may have happened while we were awaiting — bail out so a
+    // stale callback from a previous session can never open a checkpoint late.
+    if (token !== this.resetToken) return;
+
+    this.recovered.add(idx);
+    const echo = this.echoes[idx];
+    if (echo) {
+      echo.classList.add("is-decrypted", "is-found");
+      echo.setAttribute("aria-disabled", "false");
+    }
+    soundSystem.playInterface();
+
+    const countEl = $("#recordArchiveCount");
+    if (countEl) countEl.textContent = `${this.recovered.size} / 5`;
+
+    if (this.lens) this.lens.classList.remove("is-loading");
+    if (statusEl) statusEl.textContent = `RECORD 0${idx + 1} DECRYPTED`;
+    announce(`Record ${idx + 1} decrypted.`);
+
+    this.isCheckpointLoading = false;
+    this.currentTargetIndex = idx + 1;
+    this.currentSegmentProgress = 0;
+
+    const guideText = $("#recordsGuideText");
+    if (this.currentTargetIndex < this.coords.length) {
+      const nextLabel = String(this.currentTargetIndex + 1).padStart(2, "0");
+      if (guideText) guideText.textContent = `DRAG TO CHECKPOINT ${nextLabel}`;
+    } else if (guideText) {
+      guideText.textContent = "ALL RECORDS RECOVERED";
+    }
+
+    if (this.recovered.size === 5) {
+      const continueBtn = $("#recordArchiveContinue");
+      if (continueBtn) continueBtn.hidden = false;
+      announce("All personal records recovered. Ready to proceed to timeline.");
+    }
+
+    this.paint();
+  },
+
+  // Shows an already-recovered record on the card without moving the lens,
+  // changing the active target, or altering the progress route.
+  viewRecord(idx) {
+    const rec = siteConfig.records[idx];
+    if (!rec) return;
+    this.currentIndex = idx;
+    this.echoes.forEach((e, i) => e.classList.toggle("is-current", i === idx));
+
+    const numEl = $("#recordNumber");
+    const codeEl = $("#recordCode");
+    const titleEl = $("#recordTitle");
+    const textEl = $("#recordText");
+    const counterEl = $("#recordCounter");
+    const card = $("#recordCard");
+    const statusEl = $("#recordStatus");
+
+    if (numEl) numEl.textContent = String(idx + 1).padStart(2, "0");
+    if (codeEl) codeEl.textContent = rec.code;
+    if (counterEl) counterEl.textContent = `RECORD 0${idx + 1} / 05`;
+    if (titleEl) titleEl.textContent = rec.title;
+    if (statusEl) statusEl.textContent = `RECORD 0${idx + 1} DECRYPTED`;
 
     if (card) {
       card.classList.add("is-decrypting");
@@ -1243,21 +1469,52 @@ const recordsScene = {
   },
 
   enter() {
-    this.selectEcho(0);
     this.recalculateGeometry();
   },
+
   exit() {
-    this.isScanning = false;
+    this.endDrag();
   },
+
   reset() {
+    // Invalidate any in-flight arriveAtCheckpoint() so its awaited promises
+    // can never open a checkpoint after this session has been reset.
+    this.resetToken += 1;
+    if (this.rafId) window.cancelAnimationFrame(this.rafId);
+    this.needsPaint = false;
+    this.endDrag();
+    this.isCheckpointLoading = false;
     this.recovered.clear();
-    this.echoes.forEach(e => {
-      e.classList.remove("is-found", "is-current", "is-decrypted");
+    this.currentTargetIndex = 0;
+    this.currentSegmentProgress = 0;
+    this.currentIndex = 0;
+
+    this.echoes.forEach((e) => {
+      e.classList.remove("is-found", "is-current", "is-decrypted", "is-loading");
+      e.setAttribute("aria-disabled", "true");
     });
+    if (this.lens) this.lens.classList.remove("is-loading");
+
     const continueBtn = $("#recordArchiveContinue");
     if (continueBtn) continueBtn.hidden = true;
     const countEl = $("#recordArchiveCount");
     if (countEl) countEl.textContent = "0 / 5";
+    const statusEl = $("#recordStatus");
+    if (statusEl) statusEl.textContent = "PERSONAL RECORD READY";
+    const guideText = $("#recordsGuideText");
+    if (guideText) guideText.textContent = "DRAG THE LENS ALONG THE PATH TO CHECKPOINT 01";
+    const titleEl = $("#recordTitle");
+    if (titleEl) titleEl.textContent = "Record title";
+    const textEl = $("#recordText");
+    if (textEl) textEl.textContent = "";
+    const numEl = $("#recordNumber");
+    if (numEl) numEl.textContent = "01";
+    const codeEl = $("#recordCode");
+    if (codeEl) codeEl.textContent = siteConfig.records[0] ? siteConfig.records[0].code : "";
+    const counterEl = $("#recordCounter");
+    if (counterEl) counterEl.textContent = "RECORD 01 / 05";
+
+    this.paint();
   }
 };
 

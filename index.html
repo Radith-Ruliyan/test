@@ -123,13 +123,48 @@
         <div class="sync-stage">
           <div class="tuner-container">
             <div class="tuner__dial" id="connectionDial" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0" aria-label="Frequency dial tuner" aria-describedby="connectionGuideText">
+              <!-- Static outer mechanical housing: knurled ring, seams, bolts, status lights -->
+              <div class="dial__housing" aria-hidden="true">
+                <span class="dial__bolt dial__bolt--tl"></span>
+                <span class="dial__bolt dial__bolt--tr"></span>
+                <span class="dial__bolt dial__bolt--bl"></span>
+                <span class="dial__bolt dial__bolt--br"></span>
+                <span class="dial__seam dial__seam--h"></span>
+                <span class="dial__seam dial__seam--v"></span>
+                <span class="dial__status-lights">
+                  <b class="dial__status-light dial__status-light--1"></b>
+                  <b class="dial__status-light dial__status-light--2"></b>
+                  <b class="dial__status-light dial__status-light--3"></b>
+                </span>
+              </div>
+              <!-- Static SVG: calibration tick marks + energy progress ring + target arc -->
               <svg id="connectionTicks" viewBox="0 0 200 200" aria-hidden="true">
                 <g id="connectionTickmarks"></g>
+                <circle class="dial__energy-track" cx="100" cy="100" r="78" fill="none"/>
+                <circle id="dialEnergyFill" cx="100" cy="100" r="78" fill="none"/>
                 <path id="connectionTargetArc" d="M 170,100 A 70,70 0 0,1 150,150"/>
               </svg>
+              <!-- Counter-rotating secondary ring (moves at -0.35× dial angle) -->
+              <div class="dial__ring-secondary" aria-hidden="true"></div>
+              <!-- Inner rotor disc (rotates 1:1 with dial angle) -->
+              <div class="dial__rotor" aria-hidden="true"></div>
+              <!-- Interference / unstable signal ring -->
               <div id="connectionInterference" aria-hidden="true"></div>
-              <div id="connectionNeedle" aria-hidden="true"></div>
-              <div id="connectionHandle" aria-hidden="true"></div>
+              <!-- Mechanical pointer arm -->
+              <div id="connectionNeedle" aria-hidden="true">
+                <span class="dial__needle-arm" aria-hidden="true"></span>
+              </div>
+              <!-- Central hub (rotates at 0.55× dial angle) -->
+              <div id="connectionHandle" aria-hidden="true">
+                <span class="dial__hub-cross" aria-hidden="true"></span>
+              </div>
+              <!-- Lock brackets — snap in on matched/locked state -->
+              <div class="dial__lock-brackets" aria-hidden="true">
+                <span class="dial__bracket dial__bracket--t"></span>
+                <span class="dial__bracket dial__bracket--r"></span>
+                <span class="dial__bracket dial__bracket--b"></span>
+                <span class="dial__bracket dial__bracket--l"></span>
+              </div>
             </div>
           </div>
           <div class="tuner-waveforms" aria-hidden="true">
@@ -156,8 +191,8 @@
       </div>
       <div class="record-stage">
         <div class="record-stage__counter"><span id="recordCounter">RECORD 01 / 05</span><span id="recordCode">OBS-01</span></div>
-        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="MOVE THE RADAR LENS TO DISCOVER MEMORY ECHOES" data-touch-instruction="DRAG THE SCANNER LENS ACROSS THE RADAR" data-keyboard-instruction="USE ARROW KEYS TO MOVE THE RADAR LENS">
-          <span class="interaction-guide__text" id="recordsGuideText" aria-live="polite">MOVE THE RADAR LENS TO DISCOVER MEMORY ECHOES</span>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="DRAG THE LENS ALONG THE PATH TO CHECKPOINT 01" data-touch-instruction="DRAG THE LENS ALONG THE PATH TO CHECKPOINT 01" data-keyboard-instruction="DRAG THE LENS ALONG THE PATH TO CHECKPOINT 01">
+          <span class="interaction-guide__text" id="recordsGuideText" aria-live="polite">DRAG THE LENS ALONG THE PATH TO CHECKPOINT 01</span>
           <span class="interaction-guide__demo" id="recordsGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
           <button class="interaction-guide__show" id="recordsGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
         </div>
@@ -183,7 +218,8 @@
               <line x1="150" y1="10" x2="150" y2="190" class="radar__grid"/>
               <line x1="20" y1="100" x2="280" y2="100" class="radar__grid"/>
               <polygon id="recordRadarSweep" points="150,100 270,60 270,140"/>
-              <path id="recordConstellation" d="M 75,70 L 135,140 L 180,60 L 225,130 L 255,80"/>
+              <path id="recordConstellation" d="M 150,100 L 75,70 L 135,140 L 180,60 L 225,130 L 255,80"/>
+              <path id="recordConstellationProgress" d="M 150,100 L 150,100"/>
             </svg>
             <div id="recordRadarEdges" aria-hidden="true">
               <span class="radar__edge radar__edge--n">N</span>
@@ -192,11 +228,11 @@
               <span class="radar__edge radar__edge--w">W</span>
             </div>
             <div id="recordEchoes">
-              <button class="radar__echo" data-record-index="0" type="button" aria-label="Inspect memory echo 1">01</button>
-              <button class="radar__echo" data-record-index="1" type="button" aria-label="Inspect memory echo 2">02</button>
-              <button class="radar__echo" data-record-index="2" type="button" aria-label="Inspect memory echo 3">03</button>
-              <button class="radar__echo" data-record-index="3" type="button" aria-label="Inspect memory echo 4">04</button>
-              <button class="radar__echo" data-record-index="4" type="button" aria-label="Inspect memory echo 5">05</button>
+              <button class="radar__echo" data-record-index="0" type="button" aria-label="Inspect memory echo 1" aria-disabled="true">01</button>
+              <button class="radar__echo" data-record-index="1" type="button" aria-label="Inspect memory echo 2" aria-disabled="true">02</button>
+              <button class="radar__echo" data-record-index="2" type="button" aria-label="Inspect memory echo 3" aria-disabled="true">03</button>
+              <button class="radar__echo" data-record-index="3" type="button" aria-label="Inspect memory echo 4" aria-disabled="true">04</button>
+              <button class="radar__echo" data-record-index="4" type="button" aria-label="Inspect memory echo 5" aria-disabled="true">05</button>
             </div>
             <button id="recordLens" type="button" aria-label="Optical radar scanner lens">
               <span id="recordPing" aria-hidden="true"></span>
@@ -363,7 +399,7 @@
         <label class="reply-label" for="replyMessage">WHAT WOULD YOU LIKE AYYASH TO KNOW?</label>
         <textarea id="replyMessage" maxlength="700" placeholder="Write something for Ayyash..."></textarea>
         <a class="whatsapp-button" id="whatsappReply" href="https://wa.me/6285788949082" target="_blank" rel="noopener noreferrer">
-          <span>REPLY TO AYYASH ON WHATSAPP</span><small>OPEN PRIVATE CHAT / +62 857-8894-9082</small>
+          <span>reply my confession</span><small>please answer my signal </small>
         </a>
         <small class="reply-note">WHATSAPP WILL OPEN WITH YOUR MESSAGE PREPARED. NOTHING IS SENT UNTIL YOU PRESS SEND.</small>
         <button class="text-button" id="replayButton" type="button">REPLAY TRANSMISSION</button>

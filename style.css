@@ -1199,7 +1199,7 @@ h1 em, h2 em {
 }
 
 /* --------------------------------------------------------------------------
-   10. SCENE 02: CONNECTION â€” TUNE (5-ROW GRID & POLAR ROTARY TUNER)
+   10. SCENE 02: CONNECTION — MECHA ROTARY FREQUENCY TUNER
    -------------------------------------------------------------------------- */
 .scene--connection {
   display: flex;
@@ -1254,14 +1254,19 @@ h1 em, h2 em {
   gap: 8px;
 }
 
+/* ---- Tuner Container ---- */
 .tuner-container {
   position: relative;
-  width: min(min(68vw, 190px), 24vh);
+  width: min(min(72vw, 210px), 26vh);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
 
+/* =====================================================
+   MECHA ROTARY FREQUENCY TUNER — Main Dial Shell
+   ===================================================== */
 .tuner__dial {
   position: relative;
   width: 100%;
@@ -1586,7 +1591,18 @@ h1 em, h2 em {
   stroke: var(--green);
   stroke-width: 1.5;
   stroke-dasharray: 4 2;
-  opacity: 0.8;
+  opacity: 0.55;
+}
+
+#recordConstellationProgress {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 3px rgba(0, 159, 227, 0.6));
+  transition: opacity 0.2s;
 }
 
 .radar__edge {
@@ -1640,6 +1656,15 @@ h1 em, h2 em {
   border-style: solid;
 }
 
+.radar__echo[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.radar__echo.is-decrypted[aria-disabled="true"] {
+  opacity: 1;
+}
+
 #recordLens {
   position: absolute;
   left: var(--lens-x, 50%);
@@ -1658,6 +1683,17 @@ h1 em, h2 em {
 
 #recordLens:active {
   cursor: grabbing;
+}
+
+#recordLens.is-loading {
+  cursor: wait;
+  border-color: var(--green);
+  box-shadow: 0 0 18px rgba(0, 215, 173, 0.5);
+}
+
+#recordLens.is-loading #recordPing {
+  animation-duration: 0.9s;
+  border-color: var(--green);
 }
 
 #recordPing {
