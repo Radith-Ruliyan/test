@@ -1741,36 +1741,105 @@ h1 em, h2 em {
 }
 
 /* --------------------------------------------------------------------------
-   12. SCENE 04: TIMELINE â€” TRAVEL (SINGLE VERTICAL SCROLL REGION)
+   12. SCENE 04: TIMELINE — SIGNAL JOURNEY RAIL
+   The scene itself is the only scroll root. This avoids nested-scroll dead
+   zones on touch devices while keeping the decoded record pinned in view.
    -------------------------------------------------------------------------- */
 .scene--timeline {
+  --timeline-progress: 0;
+  --card-progress: 0.2;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Avoid double nested scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: calc(var(--safe-top) + var(--topbar-h) + 190px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue) transparent;
+}
+
+.scene--timeline::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scene--timeline::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scene--timeline::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--blue), var(--red));
 }
 
 .timeline-stage {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
   grid-template-areas:
-    "counter"
+    "meta"
     "guide"
-    "scroll";
-  gap: clamp(7px, 1.4vh, 12px);
+    "journey";
+  gap: clamp(8px, 1.5vh, 14px);
   width: 100%;
-  max-width: 640px;
+  max-width: 720px;
   align-self: center;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: auto;
+  padding-bottom: max(72px, calc(var(--safe-bottom) + 54px));
 }
 
-.timeline-stage__counter {
-  grid-area: counter;
-  font: 600 7px var(--mono);
-  letter-spacing: 0.1em;
+.timeline-stage__meta {
+  grid-area: meta;
+  display: grid;
+  grid-template-columns: auto minmax(72px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  padding: 5px 8px;
+  border-block: 1px solid var(--line);
+  background: linear-gradient(90deg, rgba(0, 159, 227, 0.07), rgba(255, 255, 255, 0.42), rgba(255, 51, 95, 0.06));
+  font-family: var(--mono);
+}
+
+.timeline-stage__counter,
+.timeline-stage__percent {
+  font-size: clamp(7px, 1.9vw, 9px);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.timeline-stage__percent {
+  color: var(--blue-deep);
+  text-align: right;
+}
+
+.timeline-stage__meter {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(8px, 1fr));
+  gap: 3px;
   min-width: 0;
+}
+
+.timeline-stage__meter i {
+  height: 4px;
+  background: rgba(6, 28, 44, 0.13);
+  transform-origin: left center;
+  transition: background 0.28s var(--ease), transform 0.28s var(--ease), box-shadow 0.28s;
+}
+
+.timeline-stage__meter i.is-complete {
+  background: var(--green);
+}
+
+.timeline-stage__meter i.is-active {
+  background: var(--red);
+  transform: scaleY(1.6);
+  box-shadow: 0 0 8px rgba(255, 51, 95, 0.36);
 }
 
 .timeline-stage .interaction-guide {
@@ -1778,161 +1847,429 @@ h1 em, h2 em {
 }
 
 #timelineScrollRegion {
-  grid-area: scroll;
+  grid-area: journey;
   position: relative;
-  min-height: 0;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-  padding: 10px 12px 36px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.38);
-  scrollbar-width: thin;
-  scrollbar-color: var(--blue) transparent;
+  height: auto;
+  min-height: max-content;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
 }
 
-#timelineScrollRegion::-webkit-scrollbar {
-  width: 4px;
+#timelineScrollRegion:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
 }
 
-#timelineScrollRegion::-webkit-scrollbar-thumb {
-  background: var(--blue);
+.timeline-card-dock {
+  position: sticky;
+  z-index: 30;
+  top: calc(var(--safe-top) + var(--topbar-h) + 6px);
+  padding: 8px 4px 18px;
+  background: linear-gradient(to bottom, rgba(216, 248, 255, 0.98) 0 76%, rgba(216, 248, 255, 0));
+  pointer-events: none;
 }
 
 .timeline-card {
   position: relative;
-  min-height: min-content;
+  width: 100%;
+  min-height: clamp(150px, 24svh, 188px);
+  padding: clamp(15px, 4vw, 24px) clamp(15px, 4.5vw, 28px) clamp(13px, 3.7vw, 22px);
   border: 1px solid var(--ink);
-  background: rgba(250, 254, 255, 0.72);
-  box-shadow: 5px 5px 0 rgba(79, 210, 255, 0.58);
-  padding: clamp(14px, 4vw, 24px);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(235, 251, 255, 0.88)),
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(6, 28, 44, 0.025) 23px 24px);
+  box-shadow: 6px 6px 0 rgba(79, 210, 255, 0.62), 0 16px 30px rgba(6, 28, 44, 0.08);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(6px, 1.4vh, 12px);
+  gap: clamp(7px, 1.4vh, 12px);
   overflow: hidden;
-  backdrop-filter: blur(6px);
-  margin-bottom: 16px;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+  isolation: isolate;
 }
 
 .timeline-card--sticky {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  position: relative;
+  top: auto;
 }
 
 .timeline-card::before {
   content: "";
   position: absolute;
+  z-index: -1;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 4px;
-  background: linear-gradient(var(--blue), var(--red));
+  width: 5px;
+  background: linear-gradient(var(--blue) 0 47%, var(--red) 47% 100%);
 }
 
-.timeline-card > span {
-  font: 600 7.5px var(--mono);
-  letter-spacing: 0.1em;
+.timeline-card::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -1px;
+  top: -1px;
+  width: 72px;
+  height: 12px;
+  border-left: 1px solid var(--line);
+  background: repeating-linear-gradient(135deg, var(--ink) 0 2px, transparent 2px 7px);
+  opacity: 0.18;
+}
+
+.timeline-card__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   color: var(--red);
+  font: 700 clamp(7px, 1.9vw, 9px)/1.2 var(--mono);
+  letter-spacing: 0.09em;
+}
+
+#timelineCardStatus {
+  color: var(--blue-deep);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .timeline-card h3 {
-  max-width: 90%;
-  font-size: clamp(20px, 5.8vw, 32px);
-  line-height: 1.04;
+  max-width: 92%;
+  font-size: clamp(21px, 5.9vw, 34px);
+  line-height: 1.02;
+  text-wrap: balance;
 }
 
 .timeline-card p {
-  max-width: 38ch;
-  font-size: clamp(12.5px, 3.4vw, 15px);
-  line-height: 1.55;
+  min-height: 3.1em;
+  max-width: 48ch;
+  font-size: clamp(13px, 3.45vw, 15.5px);
+  line-height: 1.5;
   color: var(--ink-soft);
+}
+
+.timeline-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-soft);
+  font: 700 clamp(6px, 1.65vw, 8px)/1.2 var(--mono);
+  letter-spacing: 0.09em;
+}
+
+.timeline-card__activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeline-card__activity i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(255, 51, 95, 0.13);
+  animation: timelineLivePulse 1.5s var(--ease-in-out) infinite;
+}
+
+#timelineReadCue {
+  color: var(--blue-deep);
+  text-align: right;
+}
+
+.timeline-card__progress {
+  position: absolute;
+  left: 5px;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(6, 28, 44, 0.08);
+  overflow: hidden;
+}
+
+#timelineCardProgress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--red));
+  transform: scaleX(var(--card-progress));
+  transform-origin: left center;
+  transition: transform 0.55s var(--ease);
+}
+
+.timeline-card__topline,
+.timeline-card h3,
+.timeline-card p,
+.timeline-card__footer {
+  transition: opacity 0.18s var(--ease), transform 0.22s var(--ease);
+}
+
+.timeline-card.is-changing .timeline-card__topline,
+.timeline-card.is-changing h3,
+.timeline-card.is-changing p,
+.timeline-card.is-changing .timeline-card__footer {
+  opacity: 0;
+  transform: translateY(7px);
+}
+
+.timeline-card.is-entering .timeline-card__topline,
+.timeline-card.is-entering h3,
+.timeline-card.is-entering p,
+.timeline-card.is-entering .timeline-card__footer {
+  animation: timelineMessageIn 0.34s var(--ease) both;
+}
+
+.timeline-card.is-decoding::after {
+  opacity: 0.48;
+  animation: timelineStripeScan 0.8s linear infinite;
+}
+
+.timeline-journey {
+  position: relative;
+  margin-top: 2px;
+  padding: clamp(12px, 2.8vh, 24px) 4px 0;
+  isolation: isolate;
+}
+
+.timeline-journey::before {
+  content: "SIGNAL PATH / CHRONOLOGICAL RECOVERY";
+  display: block;
+  margin: 0 0 12px 54px;
+  color: var(--ink-muted);
+  font: 700 clamp(6px, 1.6vw, 8px)/1 var(--mono);
+  letter-spacing: 0.11em;
+}
+
+.timeline-reading-line {
+  position: sticky;
+  z-index: 8;
+  top: clamp(300px, 62svh, 560px);
+  height: 0;
+  margin-left: 42px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.timeline-reading-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--red), rgba(255, 51, 95, 0));
+  box-shadow: 0 0 9px rgba(255, 51, 95, 0.32);
+}
+
+.timeline-reading-line span {
+  position: absolute;
+  left: -36px;
+  top: -5px;
+  color: var(--red);
+  font: 700 6px/1 var(--mono);
+  letter-spacing: 0.08em;
 }
 
 #timelineJourneyPath {
   position: absolute;
-  left: 24px;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  height: 100%;
+  z-index: 1;
+  left: 18px;
+  top: 40px;
+  width: 24px;
+  height: calc(100% - 40px);
+  overflow: visible;
   pointer-events: none;
 }
 
+#timelineBasePath,
+#timelineProgressPath {
+  fill: none;
+}
+
 #timelineBasePath {
-  stroke: var(--line);
+  stroke: rgba(6, 28, 44, 0.2);
   stroke-width: 2;
-  stroke-dasharray: 4 3;
+  stroke-dasharray: 3 4;
 }
 
 #timelineProgressPath {
   stroke: var(--blue);
   stroke-width: 3;
-  stroke-dasharray: 1000;
-  stroke-dashoffset: calc(1000 - (var(--journey-progress, 0%) * 10));
-  filter: drop-shadow(0 0 6px var(--sky-3));
-  transition: stroke-dashoffset 0.1s linear;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  filter: drop-shadow(0 0 5px rgba(0, 159, 227, 0.7));
+  transition: stroke-dashoffset 0.12s linear;
 }
 
 #timelinePulse {
   fill: var(--red);
-  filter: drop-shadow(0 0 8px var(--red));
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 7px var(--red));
 }
 
 #timelineCheckpoints {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  padding-left: 44px;
+  z-index: 2;
+  display: grid;
+  padding-left: 54px;
 }
 
 .timeline-checkpoint {
   position: relative;
-}
-
-.timeline-checkpoint button {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-  padding: 5px 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  transition: background 0.2s, border-color 0.2s;
-  min-height: 44px;
-}
-
-.timeline-checkpoint button strong {
-  font: 600 7.5px var(--mono);
-  letter-spacing: 0.08em;
-}
-
-.timeline-checkpoint button small {
-  font: 500 5.5px var(--mono);
-  opacity: 0.6;
+  min-block-size: clamp(168px, 31svh, 232px);
+  display: flex;
+  align-items: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  scroll-margin-top: calc(var(--safe-top) + var(--topbar-h) + 205px);
 }
 
 .timeline-checkpoint::before {
   content: "";
   position: absolute;
-  left: -24px;
-  top: 8px;
-  width: 11px;
-  height: 11px;
+  z-index: 3;
+  left: -42px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   border: 2px solid var(--ink);
   background: var(--sky-0);
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  box-shadow: 0 0 0 5px rgba(204, 245, 255, 0.9);
+  transform: translateY(-50%);
+  transition: background 0.25s, border-color 0.25s, transform 0.3s var(--ease-out-back), box-shadow 0.3s;
+}
+
+.timeline-checkpoint::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: -47px;
+  top: 50%;
+  width: 25px;
+  height: 25px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0.6);
+  transition: border-color 0.3s, transform 0.35s var(--ease-out-back), opacity 0.3s;
+  opacity: 0;
+}
+
+.timeline-checkpoint button {
+  position: relative;
+  width: 100%;
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 12px;
+  border: 1px solid rgba(6, 28, 44, 0.2);
+  background: rgba(249, 254, 255, 0.56);
+  text-align: left;
+  box-shadow: 3px 3px 0 rgba(6, 28, 44, 0.08);
+  transition: transform 0.3s var(--ease-out-back), background 0.25s, border-color 0.25s, box-shadow 0.25s, opacity 0.25s;
+  overflow: hidden;
+}
+
+.timeline-checkpoint button::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--line);
+  transition: background 0.25s, width 0.25s;
+}
+
+.timeline-checkpoint button::after {
+  content: "";
+  position: absolute;
+  right: -16px;
+  bottom: -24px;
+  width: 70px;
+  height: 70px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  opacity: 0.35;
+}
+
+.timeline-checkpoint__index {
+  color: rgba(6, 28, 44, 0.2);
+  font: 400 clamp(24px, 7vw, 38px)/1 var(--display);
+  transition: color 0.25s, transform 0.3s var(--ease-out-back);
+}
+
+.timeline-checkpoint__copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.timeline-checkpoint__copy strong {
+  font: 700 clamp(8px, 2.2vw, 11px)/1.2 var(--mono);
+  letter-spacing: 0.07em;
+}
+
+.timeline-checkpoint__copy small {
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font: 500 clamp(8px, 2.15vw, 10.5px)/1.35 var(--mono);
+  opacity: 0.66;
+}
+
+.timeline-checkpoint__state {
+  align-self: start;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  font: 700 clamp(5.5px, 1.55vw, 7px)/1 var(--mono);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .timeline-checkpoint.is-current::before {
   border-color: var(--red);
   background: var(--red);
-  box-shadow: 0 0 0 4px rgba(255, 51, 95, 0.25);
-  transform: scale(1.25);
+  box-shadow: 0 0 0 6px rgba(255, 51, 95, 0.16), 0 0 16px rgba(255, 51, 95, 0.45);
+  transform: translateY(-50%) scale(1.14);
+}
+
+.timeline-checkpoint.is-current::after {
+  border-color: rgba(255, 51, 95, 0.55);
+  transform: translateY(-50%) scale(1);
+  opacity: 1;
+  animation: timelineNodeRing 1.7s var(--ease-in-out) infinite;
+}
+
+.timeline-checkpoint.is-current button {
+  border-color: var(--red);
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.92), rgba(255, 51, 95, 0.08));
+  box-shadow: 5px 5px 0 rgba(255, 51, 95, 0.18), 0 14px 28px rgba(6, 28, 44, 0.08);
+  transform: translateX(5px);
+}
+
+.timeline-checkpoint.is-current button::before {
+  width: 4px;
+  background: var(--red);
+}
+
+.timeline-checkpoint.is-current .timeline-checkpoint__index {
+  color: var(--red);
+  transform: scale(1.06);
+}
+
+.timeline-checkpoint.is-current .timeline-checkpoint__state {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255, 255, 255, 0.62);
 }
 
 .timeline-checkpoint.is-completed::before {
@@ -1940,10 +2277,74 @@ h1 em, h2 em {
   background: var(--green);
 }
 
+.timeline-checkpoint.is-completed button {
+  border-color: rgba(0, 215, 173, 0.42);
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.7), rgba(0, 215, 173, 0.07));
+}
+
+.timeline-checkpoint.is-completed button::before {
+  background: var(--green);
+}
+
+.timeline-checkpoint.is-completed .timeline-checkpoint__index,
+.timeline-checkpoint.is-completed .timeline-checkpoint__state {
+  color: #008f76;
+}
+
+.timeline-checkpoint:not(.is-current):not(.is-completed) button {
+  opacity: 0.74;
+}
+
+.timeline-checkpoint button:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 4px;
+}
+
 .timeline-continue-wrapper {
+  min-height: clamp(210px, 42svh, 340px);
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 14px;
+  margin-top: 2px;
+  padding: clamp(24px, 5vh, 42px) 12px max(48px, calc(var(--safe-bottom) + 30px));
+  border-top: 1px dashed var(--line);
   text-align: center;
-  margin-top: 24px;
-  padding-bottom: 12px;
+}
+
+.timeline-continue-wrapper > span {
+  color: var(--ink-muted);
+  font: 700 clamp(6px, 1.7vw, 8px)/1.3 var(--mono);
+  letter-spacing: 0.11em;
+}
+
+#timelineFinalContinue {
+  width: min(100%, 340px);
+  min-height: 54px;
+  box-shadow: 5px 5px 0 var(--green);
+  animation: timelineButtonIn 0.45s var(--ease-out-back) both;
+}
+
+@keyframes timelineLivePulse {
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+@keyframes timelineMessageIn {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes timelineStripeScan {
+  to { transform: translateX(10px); }
+}
+
+@keyframes timelineNodeRing {
+  50% { transform: translateY(-50%) scale(1.22); opacity: 0.35; }
+}
+
+@keyframes timelineButtonIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* --------------------------------------------------------------------------
@@ -2651,8 +3052,8 @@ h1 em, h2 em {
 }
 
 .timeline-checkpoint button {
-  min-height: 52px;
-  padding: 8px 12px;
+  min-height: 96px;
+  padding: 13px 12px;
   width: 100%;
 }
 
@@ -2756,15 +3157,18 @@ h1 em, h2 em {
   min-height: 110px;
 }
 
-/* Timeline — extra bottom padding so continue button clears soft keyboard */
+/* Timeline — the scene is the only scroll root; keep the final action clear. */
+.scene--timeline {
+  scroll-padding-bottom: max(72px, calc(var(--safe-bottom) + 54px));
+}
+
 #timelineScrollRegion {
-  padding-bottom: max(64px, calc(var(--safe-bottom) + 52px));
-  scroll-padding-bottom: 52px;
+  padding-bottom: 0;
 }
 
 .timeline-continue-wrapper {
-  margin-top: 32px;
-  padding-bottom: max(24px, var(--safe-bottom));
+  margin-top: 2px;
+  padding-bottom: max(48px, calc(var(--safe-bottom) + 30px));
 }
 
 #timelineFinalContinue {
@@ -2859,6 +3263,19 @@ select {
   .topbar { gap: 5px; }
   .audio-button { padding-inline: 6px; }
   .section-heading h2 { font-size: 24px; }
+  .timeline-stage__meta { grid-template-columns: auto 1fr; }
+  .timeline-stage__percent { display: none; }
+  .timeline-checkpoint button {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 9px;
+    padding: 12px 10px;
+  }
+  .timeline-checkpoint__state {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+  }
+  .timeline-checkpoint__copy { padding-top: 7px; }
   .response-options--binary {
     grid-template-columns: 1fr;
   }
@@ -2883,9 +3300,18 @@ select {
   .sync-panel { padding: 9px; gap: 5px; }
   .sync-readout strong { font-size: clamp(28px, 8.5vw, 44px); }
   .tuner-container { width: min(min(60vw, 150px), 20vh); }
-  .record-card, .timeline-card { padding: 10px; }
-  .record-card h3, .timeline-card h3 { font-size: clamp(16px, 4.8vw, 24px); }
-  .record-card__text, .timeline-card p { margin-top: 6px; font-size: 11.5px; line-height: 1.4; }
+  .record-card { padding: 10px; }
+  .timeline-card {
+    min-height: 142px;
+    padding: 12px 14px 11px;
+    gap: 6px;
+  }
+  .record-card h3 { font-size: clamp(16px, 4.8vw, 24px); }
+  .timeline-card h3 { font-size: clamp(18px, 5vw, 26px); }
+  .record-card__text { margin-top: 6px; font-size: 11.5px; line-height: 1.4; }
+  .timeline-card p { margin-top: 0; min-height: 2.9em; font-size: 12.5px; line-height: 1.42; }
+  .timeline-card-dock { padding-top: 5px; padding-bottom: 13px; }
+  .timeline-checkpoint { min-block-size: clamp(148px, 29svh, 194px); }
   #recordRadar { min-height: 110px; }
   .barrier-visual { min-height: 100px; max-height: 22vh; }
   .barrier-copy > p:not(.eyebrow) { margin: 6px 0; font-size: 11.5px; }

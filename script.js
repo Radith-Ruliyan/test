@@ -1519,36 +1519,65 @@ const recordsScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 4: TIMELINE (TRAVEL) â€” REAL CHECKPOINT MEASUREMENTS
+   SCENE MODULE 4: TIMELINE (TRAVEL) — PACED, GEOMETRY-DRIVEN JOURNEY
    -------------------------------------------------------------------------- */
 const timelineScene = {
+  SCROLL_SETTLE_MS: 280,
+  MESSAGE_HOLD_MS: 1250,
+  MESSAGE_TRANSITION_MS: 180,
+  READING_LINE_RATIO: 0.62,
+
+  scrollRoot: null,
   scrollRegion: null,
+  journey: null,
+  card: null,
   checkpoints: [],
+  meterSegments: [],
   basePath: null,
   progressPath: null,
   pulseDot: null,
   continueBtn: null,
   currentMilestone: 0,
+  renderedMilestone: -1,
+  candidateMilestone: 0,
+  pendingMilestone: null,
   checkpointCenters: [],
+  checkpointLocalCenters: [],
+  pathStartY: 24,
+  pathEndY: 696,
+  scrollRaf: null,
+  settleTimer: null,
+  holdTimer: null,
+  enterTimer: null,
+  isTransitioning: false,
+  isActive: false,
+  holdUntil: 0,
+  transitionToken: 0,
 
   init() {
+    this.scrollRoot = $(".scene--timeline");
     this.scrollRegion = $("#timelineScrollRegion");
+    this.journey = $("#timelineJourney");
+    this.card = $("#timelineCard");
     this.checkpoints = $$(".timeline-checkpoint");
+    this.meterSegments = $$("#timelineMeter i");
     this.basePath = $("#timelineBasePath");
     this.progressPath = $("#timelineProgressPath");
     this.pulseDot = $("#timelinePulse");
     this.continueBtn = $("#timelineFinalContinue");
 
-    if (this.scrollRegion) {
-      this.scrollRegion.addEventListener("scroll", () => this.onScroll(), { passive: true });
+    if (this.scrollRoot) {
+      this.scrollRoot.addEventListener("scroll", () => this.onScroll(), { passive: true });
     }
 
-    this.checkpoints.forEach((cp, idx) => {
-      const btn = cp.querySelector("button");
-      if (btn) {
-        btn.addEventListener("click", () => {
-          this.setMilestone(idx);
-        });
+    if (this.scrollRegion) {
+      this.scrollRegion.addEventListener("keydown", (event) => this.onKeyDown(event));
+    }
+
+    this.checkpoints.forEach((checkpoint, idx) => {
+      const button = checkpoint.querySelector("button");
+      if (button) {
+        button.addEventListener("click", () => this.scrollToCheckpoint(idx));
       }
     });
 
@@ -1557,70 +1586,161 @@ const timelineScene = {
         sceneManager.advanceTo("barrier");
       });
     }
+
+    this.paintMilestoneState(0, false);
+  },
+
+  wait(ms) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
+  },
+
+  clearTimers() {
+    if (this.settleTimer) clearTimeout(this.settleTimer);
+    if (this.holdTimer) clearTimeout(this.holdTimer);
+    if (this.enterTimer) clearTimeout(this.enterTimer);
+    if (this.scrollRaf !== null) cancelAnimationFrame(this.scrollRaf);
+    this.settleTimer = null;
+    this.holdTimer = null;
+    this.enterTimer = null;
+    this.scrollRaf = null;
   },
 
   recalculateGeometry() {
-    if (!this.scrollRegion || this.checkpoints.length === 0) return;
-    const regionRect = this.scrollRegion.getBoundingClientRect();
-    const scrollTop = this.scrollRegion.scrollTop;
+    if (!this.scrollRoot || !this.journey || this.checkpoints.length === 0) return;
 
-    this.checkpointCenters = this.checkpoints.map(cp => {
-      const rect = cp.getBoundingClientRect();
-      return (rect.top - regionRect.top + scrollTop) + (rect.height / 2);
+    const rootRect = this.scrollRoot.getBoundingClientRect();
+    const journeyRect = this.journey.getBoundingClientRect();
+    const rootScrollTop = this.scrollRoot.scrollTop;
+    const svgTopOffset = 40;
+    const svgHeight = Math.max(720, this.journey.offsetHeight - svgTopOffset);
+
+    this.checkpointCenters = this.checkpoints.map(checkpoint => {
+      const rect = checkpoint.getBoundingClientRect();
+      return rect.top - rootRect.top + rootScrollTop + (rect.height / 2);
     });
 
-    const firstY = this.checkpointCenters[0] || 20;
-    const lastY = this.checkpointCenters[this.checkpointCenters.length - 1] || 580;
+    this.checkpointLocalCenters = this.checkpoints.map(checkpoint => {
+      const rect = checkpoint.getBoundingClientRect();
+      return clamp(rect.top - journeyRect.top + (rect.height / 2) - svgTopOffset, 16, svgHeight - 16);
+    });
+
+    this.pathStartY = this.checkpointLocalCenters[0] || 24;
+    this.pathEndY = this.checkpointLocalCenters[this.checkpointLocalCenters.length - 1] || (svgHeight - 24);
 
     const svg = $("#timelineJourneyPath");
-    if (svg) {
-      svg.setAttribute("viewBox", `0 0 20 ${Math.max(600, lastY + 40)}`);
-    }
-    if (this.basePath) {
-      this.basePath.setAttribute("d", `M 10,${firstY.toFixed(1)} L 10,${lastY.toFixed(1)}`);
-    }
-    if (this.progressPath) {
-      this.progressPath.setAttribute("d", `M 10,${firstY.toFixed(1)} L 10,${lastY.toFixed(1)}`);
-    }
+    if (svg) svg.setAttribute("viewBox", `0 0 24 ${svgHeight.toFixed(1)}`);
 
-    this.onScroll();
+    const pathData = `M 12,${this.pathStartY.toFixed(1)} L 12,${this.pathEndY.toFixed(1)}`;
+    if (this.basePath) this.basePath.setAttribute("d", pathData);
+    if (this.progressPath) this.progressPath.setAttribute("d", pathData);
+
+    this.renderScrollState(false);
   },
 
   onScroll() {
-    if (!this.scrollRegion) return;
+    if (!this.isActive || !this.scrollRoot) return;
     hintController.notifyProgress();
-    const maxScroll = this.scrollRegion.scrollHeight - this.scrollRegion.clientHeight;
-    const ratio = maxScroll > 0 ? this.scrollRegion.scrollTop / maxScroll : 0;
 
-    const idx = clamp(Math.floor(ratio * 5), 0, 4);
-    if (idx !== this.currentMilestone) {
-      this.setMilestone(idx);
-    }
-
-    if (this.progressPath) {
-      this.progressPath.style.strokeDashoffset = `${1000 - (ratio * 1000)}`;
-    }
-    if (this.pulseDot) {
-      const firstY = this.checkpointCenters[0] || 20;
-      const lastY = this.checkpointCenters[this.checkpointCenters.length - 1] || 580;
-      const cy = firstY + ratio * (lastY - firstY);
-      this.pulseDot.setAttribute("cy", String(cy.toFixed(1)));
-    }
-
-    if (ratio >= 0.88 && this.continueBtn) {
-      this.continueBtn.hidden = false;
-    }
+    if (this.scrollRaf !== null) return;
+    this.scrollRaf = requestAnimationFrame(() => {
+      this.scrollRaf = null;
+      this.renderScrollState(true);
+    });
   },
 
-  setMilestone(idx) {
-    this.currentMilestone = idx;
-    this.checkpoints.forEach((cp, i) => {
-      cp.classList.toggle("is-current", i === idx);
-      cp.classList.toggle("is-completed", i < idx);
+  renderScrollState(scheduleMessage = true) {
+    if (!this.scrollRoot || this.checkpointCenters.length === 0) return;
+
+    const readingPosition = this.scrollRoot.scrollTop + (this.scrollRoot.clientHeight * this.READING_LINE_RATIO);
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+
+    this.checkpointCenters.forEach((center, idx) => {
+      const distance = Math.abs(center - readingPosition);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = idx;
+      }
     });
 
+    this.candidateMilestone = nearestIndex;
+
+    const firstCenter = this.checkpointCenters[0];
+    const lastCenter = this.checkpointCenters[this.checkpointCenters.length - 1];
+    const travel = lastCenter > firstCenter
+      ? clamp((readingPosition - firstCenter) / (lastCenter - firstCenter), 0, 1)
+      : 0;
+
+    if (this.progressPath) {
+      this.progressPath.style.strokeDashoffset = String((100 - (travel * 100)).toFixed(2));
+    }
+    if (this.pulseDot) {
+      const pulseY = this.pathStartY + (travel * (this.pathEndY - this.pathStartY));
+      this.pulseDot.setAttribute("cy", pulseY.toFixed(1));
+    }
+    if (this.scrollRoot) {
+      this.scrollRoot.style.setProperty("--timeline-progress", travel.toFixed(4));
+    }
+
+    if (!scheduleMessage) return;
+
+    if (this.settleTimer) clearTimeout(this.settleTimer);
+    this.settleTimer = window.setTimeout(() => {
+      this.settleTimer = null;
+      this.requestMilestone(this.candidateMilestone);
+    }, this.SCROLL_SETTLE_MS);
+  },
+
+  requestMilestone(idx, options = {}) {
+    const target = clamp(idx, 0, this.checkpoints.length - 1);
+    const immediate = Boolean(options.immediate);
+    const silent = Boolean(options.silent);
+
+    if (!this.isActive && !immediate) return;
+    if (target === this.renderedMilestone && !this.isTransitioning) return;
+
+    if (this.isTransitioning) {
+      this.pendingMilestone = target;
+      return;
+    }
+
+    const remainingHold = this.holdUntil - performance.now();
+    if (!immediate && remainingHold > 0) {
+      this.pendingMilestone = target;
+      this.setReadCue("PAUSE / READING SIGNAL");
+      if (this.holdTimer) clearTimeout(this.holdTimer);
+      this.holdTimer = window.setTimeout(() => this.releaseMessageHold(), remainingHold);
+      return;
+    }
+
+    this.commitMilestone(target, { immediate, silent });
+  },
+
+  async commitMilestone(idx, options = {}) {
     const data = siteConfig.timeline[idx];
-    if (!data) return;
+    if (!data || !this.card) return;
+
+    const immediate = Boolean(options.immediate);
+    const silent = Boolean(options.silent);
+    const token = ++this.transitionToken;
+    this.isTransitioning = true;
+    this.pendingMilestone = null;
+    if (this.holdTimer) clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+
+    this.card.setAttribute("aria-busy", "true");
+    this.card.classList.add("is-decoding");
+    this.card.classList.toggle("is-changing", !immediate && !reduceMotion.matches);
+    this.setReadCue("DECODING NEXT SIGNAL");
+    this.setCardStatus(idx, "DECODING");
+
+    if (!immediate && !reduceMotion.matches) {
+      await this.wait(this.MESSAGE_TRANSITION_MS);
+    }
+    if (token !== this.transitionToken || !this.isActive) return;
+
+    this.currentMilestone = idx;
+    this.paintMilestoneState(idx, true);
 
     const phaseEl = $("#timelinePhase");
     const titleEl = $("#timelineTitle");
@@ -1630,20 +1750,202 @@ const timelineScene = {
     if (phaseEl) phaseEl.textContent = data.phase;
     if (titleEl) titleEl.textContent = data.title;
     if (counterEl) counterEl.textContent = `MILESTONE 0${idx + 1} / 05`;
-    if (textEl) decryptText(textEl, data.text);
+    if (textEl) textEl.textContent = "";
 
-    soundSystem.playInterface();
+    this.card.classList.remove("is-changing");
+    this.card.classList.add("is-entering");
+
+    if (textEl) await decryptText(textEl, data.text);
+    if (token !== this.transitionToken || !this.isActive) return;
+
+    this.renderedMilestone = idx;
+    this.isTransitioning = false;
+    this.holdUntil = performance.now() + this.MESSAGE_HOLD_MS;
+    this.card.setAttribute("aria-busy", "false");
+    this.card.classList.remove("is-decoding");
+    this.setCardStatus(idx, "STABLE");
+    this.setReadCue("PAUSE / READING SIGNAL");
+
+    this.enterTimer = window.setTimeout(() => {
+      if (token === this.transitionToken && this.card) {
+        this.card.classList.remove("is-entering");
+      }
+    }, 380);
+
+    if (!silent) soundSystem.playInterface();
+
+    this.holdTimer = window.setTimeout(() => this.releaseMessageHold(), this.MESSAGE_HOLD_MS);
+    requestAnimationFrame(() => this.recalculateGeometry());
+  },
+
+  releaseMessageHold() {
+    this.holdTimer = null;
+    this.holdUntil = 0;
+
+    const pending = this.pendingMilestone;
+    this.pendingMilestone = null;
+
+    if (pending !== null && pending !== this.renderedMilestone) {
+      this.commitMilestone(pending);
+      return;
+    }
+
+    if (this.currentMilestone === this.checkpoints.length - 1) {
+      this.setReadCue("SIGNAL JOURNEY COMPLETE");
+      if (this.continueBtn) this.continueBtn.hidden = false;
+    } else {
+      this.setReadCue("SCROLL FOR NEXT SIGNAL");
+    }
+  },
+
+  paintMilestoneState(idx, markCurrent = true) {
+    this.checkpoints.forEach((checkpoint, checkpointIndex) => {
+      const isCurrent = markCurrent && checkpointIndex === idx;
+      const isComplete = checkpointIndex < idx;
+      const button = checkpoint.querySelector("button");
+      const state = checkpoint.querySelector(".timeline-checkpoint__state");
+
+      checkpoint.classList.toggle("is-current", isCurrent);
+      checkpoint.classList.toggle("is-completed", isComplete);
+
+      if (button) {
+        if (isCurrent) button.setAttribute("aria-current", "step");
+        else button.removeAttribute("aria-current");
+      }
+      if (state) {
+        state.textContent = isCurrent ? "ACTIVE" : (isComplete ? "LOGGED" : "QUEUED");
+      }
+    });
+
+    this.meterSegments.forEach((segment, segmentIndex) => {
+      segment.classList.toggle("is-active", markCurrent && segmentIndex === idx);
+      segment.classList.toggle("is-complete", segmentIndex < idx);
+    });
+
+    const percent = $("#timelinePercent");
+    if (percent) percent.textContent = `${Math.round(((idx + 1) / this.checkpoints.length) * 100)}% LOGGED`;
+    if (this.scrollRoot) {
+      this.scrollRoot.style.setProperty("--card-progress", String((idx + 1) / this.checkpoints.length));
+    }
+    if (this.continueBtn && idx !== this.checkpoints.length - 1) {
+      this.continueBtn.hidden = true;
+    }
+  },
+
+  setCardStatus(idx, state) {
+    const status = $("#timelineCardStatus");
+    if (status) status.textContent = `CHANNEL 0${idx + 1} / ${state}`;
+  },
+
+  setReadCue(message) {
+    const cue = $("#timelineReadCue");
+    if (cue) cue.textContent = message;
+  },
+
+  scrollToCheckpoint(idx) {
+    if (!this.scrollRoot || !this.checkpoints[idx]) return;
+
+    const rootRect = this.scrollRoot.getBoundingClientRect();
+    const checkpointRect = this.checkpoints[idx].getBoundingClientRect();
+    const checkpointCenter = checkpointRect.top - rootRect.top + this.scrollRoot.scrollTop + (checkpointRect.height / 2);
+    const targetTop = clamp(
+      checkpointCenter - (this.scrollRoot.clientHeight * this.READING_LINE_RATIO),
+      0,
+      this.scrollRoot.scrollHeight - this.scrollRoot.clientHeight
+    );
+
+    this.candidateMilestone = idx;
+    this.scrollRoot.scrollTo({
+      top: targetTop,
+      behavior: reduceMotion.matches ? "auto" : "smooth"
+    });
+
+    if (reduceMotion.matches) {
+      this.renderScrollState(false);
+      this.requestMilestone(idx);
+    }
+  },
+
+  onKeyDown(event) {
+    if (!this.scrollRoot || sceneManager.currentScene !== "timeline") return;
+    if ((event.key === "Enter" || event.key === " ") && event.target.closest("button")) return;
+
+    let destination = null;
+    const lineStep = Math.max(72, this.scrollRoot.clientHeight * 0.18);
+    const pageStep = this.scrollRoot.clientHeight * 0.72;
+
+    if (event.key === "ArrowDown") destination = this.scrollRoot.scrollTop + lineStep;
+    else if (event.key === "ArrowUp") destination = this.scrollRoot.scrollTop - lineStep;
+    else if (event.key === "PageDown") destination = this.scrollRoot.scrollTop + pageStep;
+    else if (event.key === "PageUp") destination = this.scrollRoot.scrollTop - pageStep;
+    else if (event.key === "Home") destination = 0;
+    else if (event.key === "End") destination = this.scrollRoot.scrollHeight;
+
+    if (destination === null) return;
+    event.preventDefault();
+    this.scrollRoot.scrollTo({
+      top: clamp(destination, 0, this.scrollRoot.scrollHeight - this.scrollRoot.clientHeight),
+      behavior: reduceMotion.matches ? "auto" : "smooth"
+    });
+    hintController.notifyProgress();
+  },
+
+  setMilestone(idx) {
+    this.requestMilestone(idx);
   },
 
   enter() {
-    this.setMilestone(0);
-    this.recalculateGeometry();
-  },
-  exit() {},
-  reset() {
+    this.clearTimers();
+    this.transitionToken += 1;
+    this.isActive = true;
+    this.isTransitioning = false;
     this.currentMilestone = 0;
-    if (this.scrollRegion) this.scrollRegion.scrollTop = 0;
+    this.renderedMilestone = -1;
+    this.candidateMilestone = 0;
+    this.pendingMilestone = null;
+    this.holdUntil = 0;
     if (this.continueBtn) this.continueBtn.hidden = true;
+    if (this.scrollRoot) this.scrollRoot.scrollTop = 0;
+    if (this.card) {
+      this.card.classList.remove("is-changing", "is-entering", "is-decoding");
+      this.card.setAttribute("aria-busy", "false");
+    }
+    this.paintMilestoneState(0, true);
+
+    requestAnimationFrame(() => {
+      this.recalculateGeometry();
+      this.requestMilestone(0, { immediate: true, silent: true });
+    });
+  },
+
+  exit() {
+    this.isActive = false;
+    this.clearTimers();
+    this.transitionToken += 1;
+    this.isTransitioning = false;
+    this.pendingMilestone = null;
+    if (this.card) {
+      this.card.classList.remove("is-changing", "is-entering", "is-decoding");
+      this.card.setAttribute("aria-busy", "false");
+    }
+  },
+
+  reset() {
+    this.exit();
+    this.currentMilestone = 0;
+    this.renderedMilestone = -1;
+    this.candidateMilestone = 0;
+    this.holdUntil = 0;
+    if (this.scrollRoot) {
+      this.scrollRoot.scrollTop = 0;
+      this.scrollRoot.style.setProperty("--timeline-progress", "0");
+    }
+    if (this.progressPath) this.progressPath.style.strokeDashoffset = "100";
+    if (this.pulseDot) this.pulseDot.setAttribute("cy", String(this.pathStartY.toFixed(1)));
+    if (this.continueBtn) this.continueBtn.hidden = true;
+    this.paintMilestoneState(0, true);
+    this.setCardStatus(0, "OPEN");
+    this.setReadCue("READING SIGNAL");
   }
 };
 

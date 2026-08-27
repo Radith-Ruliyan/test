@@ -253,42 +253,88 @@
         <p class="eyebrow"><span>HISTORY</span> SIGNAL DEVELOPMENT</p>
         <h2>From unfamiliar<br>to <em>meaningful.</em></h2>
       </div>
+
       <div class="timeline-stage">
-        <div class="timeline-stage__counter" id="timelineCounter">MILESTONE 01 / 05</div>
-        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY" data-touch-instruction="SWIPE UP TO SCROLL THROUGH THE TIMELINE" data-keyboard-instruction="USE UP/DOWN ARROWS OR PAGE KEYS TO SCROLL">
+        <div class="timeline-stage__meta">
+          <span class="timeline-stage__counter" id="timelineCounter">MILESTONE 01 / 05</span>
+          <span class="timeline-stage__meter" id="timelineMeter" aria-hidden="true">
+            <i class="is-active"></i><i></i><i></i><i></i><i></i>
+          </span>
+          <span class="timeline-stage__percent" id="timelinePercent">20% LOGGED</span>
+        </div>
+
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY" data-touch-instruction="SWIPE UP TO TRAVEL THROUGH EACH SIGNAL" data-keyboard-instruction="USE UP/DOWN ARROWS OR PAGE KEYS TO TRAVEL">
           <span class="interaction-guide__text" id="timelineGuideText" aria-live="polite">SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY</span>
           <span class="interaction-guide__demo" id="timelineGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
           <button class="interaction-guide__show" id="timelineGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
         </div>
-        <div id="timelineScrollRegion" tabindex="0" role="region" aria-label="Chronological memory milestones">
-          <svg id="timelineJourneyPath" viewBox="0 0 20 600" aria-hidden="true">
-            <path id="timelineBasePath" d="M 10,20 L 10,580"/>
-            <path id="timelineProgressPath" d="M 10,20 L 10,580"/>
-            <circle id="timelinePulse" cx="10" cy="20" r="5"/>
-          </svg>
-          <article class="timeline-card timeline-card--sticky" id="timelineCard">
-            <span id="timelinePhase">01 / FIRST DETECTION</span>
-            <h3 id="timelineTitle">The first quiet spark</h3>
-            <p id="timelineText"></p>
-          </article>
-          <ol id="timelineCheckpoints">
-            <li class="timeline-checkpoint is-current" data-timeline-index="0">
-              <button type="button"><strong>MILESTONE 01</strong><small>FIRST DETECTION</small></button>
-            </li>
-            <li class="timeline-checkpoint" data-timeline-index="1">
-              <button type="button"><strong>MILESTONE 02</strong><small>FAMILIAR SIGNAL</small></button>
-            </li>
-            <li class="timeline-checkpoint" data-timeline-index="2">
-              <button type="button"><strong>MILESTONE 03</strong><small>STABLE SIGNAL</small></button>
-            </li>
-            <li class="timeline-checkpoint" data-timeline-index="3">
-              <button type="button"><strong>MILESTONE 04</strong><small>EMOTIONAL CONFIRMATION</small></button>
-            </li>
-            <li class="timeline-checkpoint" data-timeline-index="4">
-              <button type="button"><strong>MILESTONE 05</strong><small>TRANSMISSION</small></button>
-            </li>
-          </ol>
+
+        <div id="timelineScrollRegion" tabindex="0" role="region" aria-label="Chronological signal milestones" aria-describedby="timelineGuideText">
+          <div class="timeline-card-dock">
+            <article class="timeline-card timeline-card--sticky" id="timelineCard" aria-live="polite" aria-atomic="true" aria-busy="false">
+              <div class="timeline-card__topline">
+                <span id="timelinePhase">01 / FIRST DETECTION</span>
+                <span id="timelineCardStatus">CHANNEL 01 / OPEN</span>
+              </div>
+              <h3 id="timelineTitle">The first quiet spark</h3>
+              <p id="timelineText"></p>
+              <div class="timeline-card__footer" aria-hidden="true">
+                <span class="timeline-card__activity"><i></i> LIVE RECORD</span>
+                <span id="timelineReadCue">READING SIGNAL</span>
+              </div>
+              <div class="timeline-card__progress" aria-hidden="true"><i id="timelineCardProgress"></i></div>
+            </article>
+          </div>
+
+          <div class="timeline-journey" id="timelineJourney">
+            <div class="timeline-reading-line" aria-hidden="true"><span>READ</span></div>
+            <svg id="timelineJourneyPath" viewBox="0 0 24 720" preserveAspectRatio="none" aria-hidden="true">
+              <path id="timelineBasePath" pathLength="100" d="M 12,24 L 12,696"/>
+              <path id="timelineProgressPath" pathLength="100" d="M 12,24 L 12,696"/>
+              <circle id="timelinePulse" cx="12" cy="24" r="5"/>
+            </svg>
+
+            <ol id="timelineCheckpoints">
+              <li class="timeline-checkpoint is-current" data-timeline-index="0" style="--step-index: 0">
+                <button type="button" aria-label="Open milestone 01, First Detection" aria-current="step">
+                  <span class="timeline-checkpoint__index">01</span>
+                  <span class="timeline-checkpoint__copy"><strong>FIRST DETECTION</strong><small>A quiet curiosity appears</small></span>
+                  <span class="timeline-checkpoint__state">ACTIVE</span>
+                </button>
+              </li>
+              <li class="timeline-checkpoint" data-timeline-index="1" style="--step-index: 1">
+                <button type="button" aria-label="Open milestone 02, Familiar Signal">
+                  <span class="timeline-checkpoint__index">02</span>
+                  <span class="timeline-checkpoint__copy"><strong>FAMILIAR SIGNAL</strong><small>The signal becomes familiar</small></span>
+                  <span class="timeline-checkpoint__state">QUEUED</span>
+                </button>
+              </li>
+              <li class="timeline-checkpoint" data-timeline-index="2" style="--step-index: 2">
+                <button type="button" aria-label="Open milestone 03, Stable Signal">
+                  <span class="timeline-checkpoint__index">03</span>
+                  <span class="timeline-checkpoint__copy"><strong>STABLE SIGNAL</strong><small>Small moments remain on record</small></span>
+                  <span class="timeline-checkpoint__state">QUEUED</span>
+                </button>
+              </li>
+              <li class="timeline-checkpoint" data-timeline-index="3" style="--step-index: 3">
+                <button type="button" aria-label="Open milestone 04, Emotional Confirmation">
+                  <span class="timeline-checkpoint__index">04</span>
+                  <span class="timeline-checkpoint__copy"><strong>EMOTIONAL CONFIRMATION</strong><small>The feeling becomes clear</small></span>
+                  <span class="timeline-checkpoint__state">QUEUED</span>
+                </button>
+              </li>
+              <li class="timeline-checkpoint" data-timeline-index="4" style="--step-index: 4">
+                <button type="button" aria-label="Open milestone 05, Message Transmission">
+                  <span class="timeline-checkpoint__index">05</span>
+                  <span class="timeline-checkpoint__copy"><strong>MESSAGE TRANSMISSION</strong><small>The signal is finally sent</small></span>
+                  <span class="timeline-checkpoint__state">QUEUED</span>
+                </button>
+              </li>
+            </ol>
+          </div>
+
           <div class="timeline-continue-wrapper">
+            <span>END OF RECOVERED SIGNAL / 05</span>
             <button class="primary-button" id="timelineFinalContinue" type="button" hidden>PROCEED TO BARRIER &rarr;</button>
           </div>
         </div>
