@@ -969,7 +969,7 @@ const heroScene = {
    -------------------------------------------------------------------------- */
 const connectionScene = {
   // DOM refs
-  dial: null,
+  dial: null, dialRect: null, rafPending: false,
   needle: null,
   targetArc: null,
   targetDot: null,
@@ -1032,7 +1032,7 @@ const connectionScene = {
     this.placeTargetDot();
     this.drawTicks();
     this.initEnergyFill();
-    this.renderFrame(0);   // kick off RAF loop
+    this.setAngle(this.angle);
 
     if (!this.dial) return;
 
@@ -2646,3 +2646,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setupAmbientCanvas();
 });
+

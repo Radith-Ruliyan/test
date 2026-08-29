@@ -311,7 +311,7 @@ body[data-active-scene="boot"] .topbar {
 
 .audio-button {
   min-width: 48px;
-  min-height: 44px;
+  min-height: 48px;
   padding: 6px 9px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.55);
@@ -2035,7 +2035,7 @@ h1 em, h2 em {
 }
 
 .primary-button {
-  min-height: 44px;
+  min-height: 48px;
   padding: 8px 14px;
   border: 1px solid var(--ink);
   background: var(--ink);
@@ -2676,6 +2676,7 @@ h1 em, h2 em {
 .flower-particle {
   position: absolute;
   will-change: transform, opacity;
+  pointer-events: none;
 }
 
 /* Letter Message View */
@@ -2844,7 +2845,7 @@ h1 em, h2 em {
 }
 
 .text-button {
-  min-height: 44px;
+  min-height: 48px;
   padding: 6px 4px;
   border: 0;
   border-bottom: 1px solid currentColor;
@@ -3341,3 +3342,6 @@ select {
   }
   .dial__drag-hint { opacity: 0.5; }
 }
+
+
+#letterContinue { position: sticky; bottom: 0; margin-top: 10px; z-index: 10; box-shadow: 0 -10px 20px rgba(250, 254, 255, 0.95); background: var(--ink); color: var(--sky-0); }
