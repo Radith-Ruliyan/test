@@ -2221,349 +2221,204 @@ const barrierScene = {
    SCENE MODULE 6: LETTER (RECONSTRUCT) â€” REAL COLLISION & PROGRESSIVE UNLOCK
    -------------------------------------------------------------------------- */
 const letterScene = {
-  field: null,
-  orb: null,
-  zone: null,
-  fragments: [],
-  statusEl: null,
-  counterEl: null,
+  envelope: null,
+  container: null,
+  messageView: null,
+  flowerContainer: null,
   copyEl: null,
-  sealBtn: null,
-  trailsGroup: null,
-
-  // Local pixel coordinates (recalculated on resize/enter)
-  arenaWidth: 0,
-  arenaHeight: 0,
-  orbX: 0, // px
-  orbY: 0, // px
-  isDragging: false,
-  placedCount: 0,
-  completed: false,
-  resizeHandler: null,
-  rafId: null,
-
-  // Define uncollected fragment coordinates as percentages
-  fragmentsData: [
-    { percentX: 18, percentY: 30, xPx: 0, yPx: 0, renderX: 0, renderY: 0, collected: false, element: null },
-    { percentX: 48, percentY: 68, xPx: 0, yPx: 0, renderX: 0, renderY: 0, collected: false, element: null },
-    { percentX: 72, percentY: 32, xPx: 0, yPx: 0, renderX: 0, renderY: 0, collected: false, element: null }
-  ],
-
-  // Target center coordinates (computed as percent of arena)
-  targetData: { percentX: 90, percentY: 50, xPx: 0, yPx: 0 },
+  continueBtn: null,
+  isOpened: false,
+  timers: [],
+  flowers: [],
 
   init() {
-    this.field = $("#letterReconstructField");
-    this.orb = $("#letterOrb");
-    this.zone = $("#letterReconstructZone");
-    this.fragments = $$(".reconstruct__fragment");
-    this.statusEl = $("#letterReconstructStatus");
-    this.counterEl = $("#letterCounter");
+    this.envelope = $("#mechaEnvelope");
+    this.container = $("#envelopeContainer");
+    this.messageView = $("#letterMessageView");
+    this.flowerContainer = $("#flowerContainer");
     this.copyEl = $("#letterCopy");
-    this.sealBtn = $("#letterSeal");
-    this.trailsGroup = $("#letterTrailsGroup");
+    this.continueBtn = $("#letterContinue");
 
-    // Link elements to data array
-    this.fragmentsData.forEach((data, idx) => {
-      data.element = this.fragments[idx];
-    });
-
-    if (this.field && this.orb) {
-      // Pointer capture on the orb button
-      this.orb.addEventListener("pointerdown", (e) => this.onStart(e));
-      this.field.addEventListener("pointermove", (e) => this.onMove(e));
-      this.field.addEventListener("pointerup", (e) => this.onEnd(e));
-      this.field.addEventListener("pointercancel", (e) => this.onEnd(e));
-    }
-
-    if (this.sealBtn) {
-      this.sealBtn.addEventListener("click", () => {
-        sceneManager.advanceTo("response");
+    if (this.envelope) {
+      this.envelope.addEventListener("click", () => this.openEnvelope());
+      this.envelope.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this.openEnvelope();
+        }
       });
     }
 
-    this.resizeHandler = () => this.measureArena();
-    window.addEventListener("resize", this.resizeHandler);
+    if (this.continueBtn) {
+      this.continueBtn.addEventListener("click", () => {
+        sceneManager.advanceTo("response");
+      });
+    }
   },
 
-  measureArena() {
-    if (!this.field) return;
-    const rect = this.field.getBoundingClientRect();
-    this.arenaWidth = rect.width || 1;
-    this.arenaHeight = rect.height || 1;
-
-    // Convert uncollected fragment coordinates to pixels
-    this.fragmentsData.forEach((pt) => {
-      pt.xPx = (pt.percentX / 100) * this.arenaWidth;
-      pt.yPx = (pt.percentY / 100) * this.arenaHeight;
-      if (!pt.collected) {
-        pt.renderX = pt.xPx;
-        pt.renderY = pt.yPx;
-      }
-    });
-
-    // Target receiver pixel coordinate
-    this.targetData.xPx = (this.targetData.percentX / 100) * this.arenaWidth;
-    this.targetData.yPx = (this.targetData.percentY / 100) * this.arenaHeight;
+  openEnvelope() {
+    if (this.isOpened) return;
+    this.isOpened = true;
     
-    if (this.zone) {
-      this.zone.style.left = `${this.targetData.xPx}px`;
-      this.zone.style.top = `${this.targetData.yPx}px`;
-    }
-
-    // If starting or resetting, place the orb at a safe initial offset (e.g. 8% X, 50% Y)
-    if (!this.isDragging && this.placedCount === 0 && !this.completed) {
-      this.orbX = 0.08 * this.arenaWidth;
-      this.orbY = 0.50 * this.arenaHeight;
-      this.updateOrbPosition();
-    }
-  },
-
-  onStart(e) {
-    if (this.completed) return;
-    this.isDragging = true;
-    this.orb.setPointerCapture(e.pointerId);
-    this.orb.classList.add("is-dragging");
-    hintController.notifyProgress();
-    e.preventDefault();
-  },
-
-  onMove(e) {
-    if (!this.isDragging || !this.field) return;
-    const rect = this.field.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Clamp boundary coordinates inside the field
-    this.orbX = clamp(x, 18, this.arenaWidth - 18);
-    this.orbY = clamp(y, 18, this.arenaHeight - 18);
-
-    this.updateOrbPosition();
-  },
-
-  onEnd(e) {
-    if (!this.isDragging) return;
-    this.isDragging = false;
-    if (this.orb) {
-      this.orb.classList.remove("is-dragging");
-      try { this.orb.releasePointerCapture(e.pointerId); } catch (_) {}
-    }
-  },
-
-  updateOrbPosition() {
-    if (this.orb) {
-      this.orb.style.left = `${this.orbX}px`;
-      this.orb.style.top = `${this.orbY}px`;
-    }
-  },
-
-  startUpdateLoop() {
-    if (this.rafId) cancelAnimationFrame(this.rafId);
-    const tick = () => {
-      this.updateFrame();
-      this.rafId = requestAnimationFrame(tick);
-    };
-    this.rafId = requestAnimationFrame(tick);
-  },
-
-  updateFrame() {
-    if (!this.field) return;
-
-    const magneticRadius = 85; // px
-    const collectRadius = 24;  // px
-
-    // Draw trails SVG paths
-    let trailsHtml = "";
-
-    this.fragmentsData.forEach((pt, idx) => {
-      if (pt.collected) return;
-
-      // Distance from orb center
-      const dx = this.orbX - pt.xPx;
-      const dy = this.orbY - pt.yPx;
-      const dist = Math.hypot(dx, dy) || 1;
-
-      if (dist <= magneticRadius) {
-        // Apply magnetic pull - move the rendering coordinate towards the orb
-        const pull = (1 - dist / magneticRadius) * 0.45;
-        pt.renderX = pt.xPx + dx * pull;
-        pt.renderY = pt.yPx + dy * pull;
-
-        if (pt.element) {
-          pt.element.classList.add("is-attracted");
-        }
-
-        // Draw active connecting line to uncollected fragment
-        const intensity = (1 - dist / magneticRadius).toFixed(2);
-        trailsHtml += `<line x1="${this.orbX.toFixed(1)}" y1="${this.orbY.toFixed(1)}" x2="${pt.renderX.toFixed(1)}" y2="${pt.renderY.toFixed(1)}" stroke="var(--red)" stroke-width="${(2.5 * intensity).toFixed(1)}" opacity="${intensity}" stroke-dasharray="2 2" />`;
-      } else {
-        // Return back to initial anchor point
-        pt.renderX = pt.renderX + (pt.xPx - pt.renderX) * 0.15;
-        pt.renderY = pt.renderY + (pt.yPx - pt.renderY) * 0.15;
-
-        if (pt.element) {
-          pt.element.classList.remove("is-attracted");
-        }
-      }
-
-      // Render the current element position
-      if (pt.element) {
-        pt.element.style.left = `${pt.renderX}px`;
-        pt.element.style.top = `${pt.renderY}px`;
-      }
-
-      // Check collection threshold
-      if (dist <= collectRadius) {
-        this.collectFragment(idx);
-      }
-    });
-
-    if (this.trailsGroup) {
-      this.trailsGroup.innerHTML = trailsHtml;
-    }
-
-    // Check target validation when all collected
-    if (this.placedCount === 3 && !this.completed) {
-      // Activate Target Feedback
-      if (this.zone) this.zone.classList.add("is-active");
-
-      const tDx = this.orbX - this.targetData.xPx;
-      const tDy = this.orbY - this.targetData.yPx;
-      const tDist = Math.hypot(tDx, tDy) || 1;
-
-      if (tDist <= 28) {
-        this.triggerLockCompletion();
-      }
-    }
-  },
-
-  collectFragment(idx) {
-    const pt = this.fragmentsData[idx];
-    if (!pt || pt.collected) return;
-
-    pt.collected = true;
-    this.placedCount++;
-
-    if (pt.element) {
-      pt.element.classList.remove("is-attracted");
-      pt.element.classList.add("is-placed");
-    }
-
     soundSystem.playInterface();
-    this.revealFragmentText(this.placedCount - 1);
-
-    if (this.counterEl) {
-      this.counterEl.textContent = `MESSAGE FRAGMENT 0${this.placedCount} / 03`;
+    if (this.envelope) {
+      this.envelope.classList.add("is-open");
+      this.envelope.setAttribute("aria-expanded", "true");
     }
 
-    if (this.statusEl) {
-      if (this.placedCount < 3) {
-        this.statusEl.textContent = `RECONSTRUCTING... FRAGMENT 0${this.placedCount} UNLOCKED`;
-      } else {
-        this.statusEl.textContent = "LETTER RESTORED / ACTIVATE TARGET RECEIVER";
-        announce("All fragments collected. Guide the orb into the target receiver.");
-      }
-    }
+    // Sequence: seal activates -> latches retract -> panels shift -> top flap unfolds
+    // Wait for envelope animation, then spawn flowers
+    this.addTimer(() => {
+      this.spawnFlowers();
+    }, 800);
   },
 
-  revealFragmentText(idx) {
-    const text = siteConfig.letter[idx];
-    if (!text || !this.copyEl) return;
-
-    let p = this.copyEl.children[idx];
-    if (!p) {
-      p = document.createElement("p");
-      this.copyEl.appendChild(p);
-    }
-    p.classList.add("is-visible");
-    decryptText(p, text);
-  },
-
-  triggerLockCompletion() {
-    if (this.completed) return;
-    this.completed = true;
-
-    // Stop loops
-    if (this.rafId) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
-
-    this.isDragging = false;
-
-    // Lock position to target center
-    this.orbX = this.targetData.xPx;
-    this.orbY = this.targetData.yPx;
-    this.updateOrbPosition();
-
-    if (this.orb) {
-      this.orb.classList.add("is-locked");
-    }
-
-    if (this.zone) {
-      this.zone.classList.remove("is-active");
-      this.zone.classList.add("is-locked");
-    }
-
+  spawnFlowers() {
     soundSystem.playInterface();
-    announce("Message reconstruction complete. Private channel open.");
-
-    if (this.statusEl) this.statusEl.textContent = "TRANSMISSION CHANNELS ESTABLISHED";
-
-    if (this.sealBtn) {
-      this.sealBtn.disabled = false;
-      this.sealBtn.hidden = false;
+    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const numSmall = isReduced ? 10 : 40;
+    const numLarge = isReduced ? 3 : 8;
+    
+    const rect = this.envelope.getBoundingClientRect();
+    const startX = rect.left + rect.width / 2;
+    const startY = rect.top + rect.height / 2;
+    
+    // Spawn small flowers
+    for(let i = 0; i < numSmall; i++) {
+      this.createFlower(startX, startY, false, i);
     }
+    // Spawn large foreground flowers
+    for(let i = 0; i < numLarge; i++) {
+      this.createFlower(startX, startY, true, i);
+    }
+
+    // After flowers cover the screen, show message
+    this.addTimer(() => {
+      if (this.container) {
+        this.container.style.opacity = "0";
+        this.container.style.transform = "scale(0.9)";
+        this.container.style.pointerEvents = "none";
+      }
+      this.showMessage();
+      this.fadeFlowers();
+    }, 2500);
+  },
+
+  createFlower(x, y, isLarge, index) {
+    const fl = document.createElement("img");
+    fl.src = "assets/forget-me-not.png";
+    fl.className = "flower-particle";
+    fl.alt = "";
+    
+    const size = isLarge ? 150 + Math.random() * 150 : 20 + Math.random() * 40;
+    fl.style.width = size + "px";
+    
+    const angle = Math.random() * Math.PI * 2;
+    const dist = isLarge ? (Math.random() * window.innerWidth * 0.4) : (Math.random() * window.innerWidth * 0.8);
+    
+    const destX = (window.innerWidth / 2) + Math.cos(angle) * dist - size/2;
+    const destY = (window.innerHeight / 2) + Math.sin(angle) * dist - size/2;
+    
+    const rot = Math.random() * 360;
+    const delay = index * 30;
+    
+    if (isLarge) {
+      fl.style.filter = "blur(" + (Math.random() * 3 + 1) + "px)";
+      fl.style.zIndex = 6;
+    } else {
+      fl.style.zIndex = 4;
+    }
+
+    fl.style.left = (x - size/2) + "px";
+    fl.style.top = (y - size/2) + "px";
+    fl.style.transform = "scale(0) rotate(0deg)";
+    fl.style.opacity = "0";
+    
+    this.flowerContainer.appendChild(fl);
+    this.flowers.push(fl);
+
+    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = isReduced ? 0 : (1000 + Math.random() * 1000);
+
+    this.addTimer(() => {
+      fl.style.transition = `transform ${duration}ms cubic-bezier(0.25, 1, 0.5, 1), opacity ${duration}ms linear`;
+      fl.style.transform = `translate(${destX - (x - size/2)}px, ${destY - (y - size/2)}px) scale(1) rotate(${rot}deg)`;
+      fl.style.opacity = isLarge ? "0.85" : "0.7";
+    }, delay);
+  },
+
+  fadeFlowers() {
+    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const fadeDuration = isReduced ? 0 : 2000;
+    
+    this.addTimer(() => {
+      this.flowers.forEach(fl => {
+        fl.style.transition = `opacity ${fadeDuration}ms linear, transform ${fadeDuration}ms linear`;
+        fl.style.opacity = "0";
+        fl.style.transform += " translateY(50px) rotate(20deg)";
+      });
+    }, 1000);
+  },
+
+  showMessage() {
+    this.messageView.hidden = false;
+    this.messageView.classList.add("is-visible");
+    
+    if (this.copyEl) {
+      this.copyEl.innerHTML = "";
+      siteConfig.letter.forEach((text, idx) => {
+        const p = document.createElement("p");
+        this.copyEl.appendChild(p);
+        this.addTimer(() => {
+          p.classList.add("is-visible");
+          decryptText(p, text);
+        }, idx * 1000);
+      });
+    }
+  },
+
+  addTimer(fn, delay) {
+    const id = setTimeout(fn, delay);
+    this.timers.push(id);
+    return id;
+  },
+
+  clearTimers() {
+    this.timers.forEach(clearTimeout);
+    this.timers = [];
   },
 
   enter() {
-    this.completed = false;
-    this.measureArena();
-    this.startUpdateLoop();
-
-    // Start with 0 unrevealed items
-    if (this.copyEl) this.copyEl.innerHTML = "";
-    if (this.counterEl) this.counterEl.textContent = "MESSAGE FRAGMENT 00 / 03";
-    if (this.statusEl) this.statusEl.textContent = "RECONSTRUCTION READY / START GUIDING ORB";
+    this.reset();
   },
 
   exit() {
-    this.isDragging = false;
-    if (this.rafId) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
+    this.clearTimers();
   },
 
   reset() {
-    this.placedCount = 0;
-    this.completed = false;
-    this.isDragging = false;
-
-    if (this.orb) {
-      this.orb.classList.remove("is-dragging", "is-locked");
+    this.clearTimers();
+    this.isOpened = false;
+    if (this.envelope) {
+      this.envelope.classList.remove("is-open");
+      this.envelope.setAttribute("aria-expanded", "false");
     }
-    if (this.zone) {
-      this.zone.classList.remove("is-active", "is-locked");
+    if (this.container) {
+      this.container.style.opacity = "1";
+      this.container.style.transform = "none";
+      this.container.style.pointerEvents = "auto";
     }
-
-    this.fragmentsData.forEach((pt) => {
-      pt.collected = false;
-      if (pt.element) {
-        pt.element.classList.remove("is-attracted", "is-placed");
-      }
-    });
-
-    if (this.copyEl) this.copyEl.innerHTML = "";
-    if (this.counterEl) this.counterEl.textContent = "MESSAGE FRAGMENT 00 / 03";
-    if (this.statusEl) this.statusEl.textContent = "RECONSTRUCTION READY / START GUIDING ORB";
-    if (this.sealBtn) {
-      this.sealBtn.disabled = true;
-      this.sealBtn.hidden = true;
+    if (this.messageView) {
+      this.messageView.hidden = true;
+      this.messageView.classList.remove("is-visible");
     }
-
-    this.measureArena();
-    this.startUpdateLoop();
+    if (this.copyEl) {
+      this.copyEl.innerHTML = "";
+    }
+    if (this.flowerContainer) {
+      this.flowerContainer.innerHTML = "";
+    }
+    this.flowers = [];
   }
 };
 

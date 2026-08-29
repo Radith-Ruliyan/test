@@ -377,49 +377,44 @@
       </div>
     </section>
 
-    <!-- Scene 6: Letter (RECONSTRUCT) -->
+    <!-- Scene 6: Letter (MECHA ENVELOPE) -->
     <section class="scene scene--letter" data-scene="letter" data-chapter="06" aria-label="Private message" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">06</span>
-      <article class="letter-card">
-        <div class="letter-card__top"><span>UNSENT MESSAGE / RECOVERED</span><span>PRIVATE</span></div>
+      
+      <div class="envelope-container" id="envelopeContainer">
         <p class="eyebrow"><span>TO</span> <b data-recipient>Maureen</b></p>
         <h2>A message beyond<br><em>the interface.</em></h2>
-        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="GUIDE THE MAGNETIC ORB TO RECONSTRUCT THE LETTER" data-touch-instruction="DRAG THE ORB TO ATTRACT LETTER FRAGMENTS" data-keyboard-instruction="USE ARROW KEYS TO MOVE THE ORB">
-          <span class="interaction-guide__text" id="letterGuideText" aria-live="polite">GUIDE THE MAGNETIC ORB TO RECONSTRUCT THE LETTER</span>
-          <span class="interaction-guide__demo" id="letterGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
-          <button class="interaction-guide__show" id="letterGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
-        </div>
-        <div class="letter-fragment">
-          <span id="letterCounter">MESSAGE FRAGMENT 00 / 03</span>
-          <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
-        </div>
-        <div class="letter-signature" id="letterSignature">&mdash; <span data-sender>Ayyash</span></div>
-        <div id="letterReconstruct">
-          <div id="letterReconstructField">
-            <!-- Subtle scan grid -->
-            <div class="arena-grid" aria-hidden="true"></div>
-            <!-- SVG layer for connection trails -->
-            <svg class="arena-svg" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;">
-              <g id="letterTrailsGroup"></g>
-            </svg>
-            <div id="letterFragmentLayer" aria-hidden="true">
-              <span class="reconstruct__fragment" data-fragment-index="0"><i>&sect;</i> 01</span>
-              <span class="reconstruct__fragment" data-fragment-index="1"><i>&sect;</i> 02</span>
-              <span class="reconstruct__fragment" data-fragment-index="2"><i>&sect;</i> 03</span>
-            </div>
-            <div id="letterReconstructZone" aria-hidden="true"><span>TARGET</span></div>
-            <button id="letterOrb" type="button" aria-label="Magnetic reconstruction orb">
-              <span class="orb-pulse" aria-hidden="true"></span>
-            </button>
+
+        <div class="mecha-envelope" id="mechaEnvelope" role="button" tabindex="0" aria-label="Tap seal to open message" aria-expanded="false">
+          <div class="mecha-envelope__latch mecha-envelope__latch--left"></div>
+          <div class="mecha-envelope__latch mecha-envelope__latch--right"></div>
+          
+          <div class="mecha-envelope__panel mecha-envelope__panel--bottom">
+            <div class="mecha-envelope__scan-grid"></div>
+            <div class="mecha-envelope__status-line mecha-envelope__status-line--cyan"></div>
+            <div class="mecha-envelope__status-line mecha-envelope__status-line--pink"></div>
           </div>
-          <div id="letterReconstructStatus" aria-live="polite">RECONSTRUCTION / READY</div>
+          
+          <div class="mecha-envelope__panel mecha-envelope__panel--top" id="mechaTopFlap">
+            <div class="mecha-envelope__scan-grid"></div>
+          </div>
+
+          <div class="mecha-envelope__seal" id="mechaSeal">
+            <div class="mecha-envelope__seal-glow"></div>
+            <div class="mecha-envelope__seal-core"></div>
+            <div class="mecha-envelope__seal-text">TAP SEAL TO OPEN</div>
+          </div>
         </div>
+      </div>
+
+      <div id="flowerContainer" aria-hidden="true"></div>
+
+      <article class="letter-card" id="letterMessageView" hidden>
+        <div class="letter-card__top"><span>UNSENT MESSAGE / RECOVERED</span><span>PRIVATE</span></div>
+        <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
+        <div class="letter-signature" id="letterSignature">&mdash; <span data-sender>Ayyash</span></div>
+        <button class="primary-button" id="letterContinue" type="button">CONTINUE TO RESPONSE &rarr;</button>
       </article>
-      <div id="letterSealLayer" aria-hidden="true"></div>
-      <button class="message-seal" id="letterSeal" type="button" disabled hidden aria-label="Open response channel to Ayyash">
-        <span class="message-seal__rings" aria-hidden="true"><i></i><i></i><b>03</b></span>
-        <span><strong id="letterActionLabel">OPEN RESPONSE CHANNEL</strong><small>CONFIRM TRANSMISSION</small></span>
-      </button>
     </section>
 
     <!-- Scene 7: Response (CHOOSE) -->
