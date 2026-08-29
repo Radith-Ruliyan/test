@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <!-- Ayyash to Maureen // private emotional signal -->
 <html lang="en">
 <head>
@@ -123,6 +123,11 @@
         <div class="sync-stage">
           <div class="tuner-container">
             <div class="tuner__dial" id="connectionDial" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0" aria-label="Frequency dial tuner" aria-describedby="connectionGuideText">
+              <!-- Drag-hint arc: quarter-circle, disappears on first interaction -->
+              <svg class="dial__drag-hint" aria-hidden="true" viewBox="0 0 200 200">
+                <path class="dial__drag-hint-path" d="M 100,28 A 72,72 0 0,1 172,100" fill="none"/>
+                <polygon class="dial__drag-hint-arrow" points="172,88 178,102 164,100"/>
+              </svg>
               <!-- Static outer mechanical housing: knurled ring, seams, bolts, status lights -->
               <div class="dial__housing" aria-hidden="true">
                 <span class="dial__bolt dial__bolt--tl"></span>
@@ -137,20 +142,41 @@
                   <b class="dial__status-light dial__status-light--3"></b>
                 </span>
               </div>
-              <!-- Static SVG: calibration tick marks + energy progress ring + target arc -->
+              <!-- Static SVG layer: concentric rings, tick marks, progress arc, target marker -->
               <svg id="connectionTicks" viewBox="0 0 200 200" aria-hidden="true">
+                <defs>
+                  <radialGradient id="dialGlowGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="rgba(0,159,227,0)" />
+                    <stop offset="85%" stop-color="rgba(0,159,227,0.06)" />
+                    <stop offset="100%" stop-color="rgba(0,159,227,0.18)" />
+                  </radialGradient>
+                </defs>
+                <!-- Depth glow ring -->
+                <circle cx="100" cy="100" r="96" fill="url(#dialGlowGrad)"/>
+                <!-- Concentric ring 1 (outer) -->
+                <circle class="dial__ring dial__ring--1" cx="100" cy="100" r="94" fill="none"/>
+                <!-- Concentric ring 2 -->
+                <circle class="dial__ring dial__ring--2" cx="100" cy="100" r="86" fill="none"/>
+                <!-- Tick marks group -->
                 <g id="connectionTickmarks"></g>
+                <!-- Energy progress track -->
                 <circle class="dial__energy-track" cx="100" cy="100" r="78" fill="none"/>
+                <!-- Energy fill arc (JS-driven stroke-dashoffset) -->
                 <circle id="dialEnergyFill" cx="100" cy="100" r="78" fill="none"/>
-                <path id="connectionTargetArc" d="M 170,100 A 70,70 0 0,1 150,150"/>
+                <!-- Target zone arc (pink) -->
+                <path id="connectionTargetArc" d=""/>
+                <!-- Pink target dot marker (static, at the exact target angle) -->
+                <circle id="connectionTargetDot" cx="100" cy="22" r="4" fill="var(--red)" opacity="0.9"/>
+                <!-- Scanning sweep line -->
+                <line id="dialScanLine" x1="100" y1="100" x2="100" y2="24" stroke="var(--blue)" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
               </svg>
               <!-- Counter-rotating secondary ring (moves at -0.35× dial angle) -->
-              <div class="dial__ring-secondary" aria-hidden="true"></div>
+              <div class="dial__ring-secondary" id="dialRingSecondary" aria-hidden="true"></div>
               <!-- Inner rotor disc (rotates 1:1 with dial angle) -->
-              <div class="dial__rotor" aria-hidden="true"></div>
+              <div class="dial__rotor" id="dialRotor" aria-hidden="true"></div>
               <!-- Interference / unstable signal ring -->
               <div id="connectionInterference" aria-hidden="true"></div>
-              <!-- Mechanical pointer arm -->
+              <!-- Mechanical pointer needle -->
               <div id="connectionNeedle" aria-hidden="true">
                 <span class="dial__needle-arm" aria-hidden="true"></span>
               </div>
@@ -168,6 +194,14 @@
             </div>
           </div>
           <div class="tuner-waveforms" aria-hidden="true">
+            <svg class="waveform-grid" viewBox="0 0 300 60" aria-hidden="true" preserveAspectRatio="none">
+              <line x1="0" y1="30" x2="300" y2="30"/>
+              <line x1="75" y1="0" x2="75" y2="60"/>
+              <line x1="150" y1="0" x2="150" y2="60"/>
+              <line x1="225" y1="0" x2="225" y2="60"/>
+              <line x1="0" y1="15" x2="300" y2="15"/>
+              <line x1="0" y1="45" x2="300" y2="45"/>
+            </svg>
             <svg id="connectionWaveBlue" viewBox="0 0 300 60"><path d="M 0,30 Q 75,5 150,30 T 300,30"/></svg>
             <svg id="connectionWavePink" viewBox="0 0 300 60"><path d="M 0,30 Q 75,55 150,30 T 300,30"/></svg>
             <svg id="connectionWaveMerged" viewBox="0 0 300 60"><path d="M 0,30 Q 75,30 150,30 T 300,30"/></svg>
@@ -217,6 +251,9 @@
               <ellipse cx="150" cy="100" rx="40" ry="25" class="radar__grid" fill="none"/>
               <line x1="150" y1="10" x2="150" y2="190" class="radar__grid"/>
               <line x1="20" y1="100" x2="280" y2="100" class="radar__grid"/>
+              <!-- Permanent circular START marker at radar center -->
+              <circle cx="150" cy="100" r="10" class="radar__start-ring" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-dasharray="3 2" />
+              <circle cx="150" cy="100" r="3" class="radar__start-dot" fill="var(--blue)" />
               <polygon id="recordRadarSweep" points="150,100 270,60 270,140"/>
               <path id="recordConstellation" d="M 150,100 L 75,70 L 135,140 L 180,60 L 225,130 L 255,80"/>
               <path id="recordConstellationProgress" d="M 150,100 L 150,100"/>
@@ -253,88 +290,50 @@
         <p class="eyebrow"><span>HISTORY</span> SIGNAL DEVELOPMENT</p>
         <h2>From unfamiliar<br>to <em>meaningful.</em></h2>
       </div>
-
       <div class="timeline-stage">
-        <div class="timeline-stage__meta">
-          <span class="timeline-stage__counter" id="timelineCounter">MILESTONE 01 / 05</span>
-          <span class="timeline-stage__meter" id="timelineMeter" aria-hidden="true">
-            <i class="is-active"></i><i></i><i></i><i></i><i></i>
-          </span>
-          <span class="timeline-stage__percent" id="timelinePercent">20% LOGGED</span>
-        </div>
-
-        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY" data-touch-instruction="SWIPE UP TO TRAVEL THROUGH EACH SIGNAL" data-keyboard-instruction="USE UP/DOWN ARROWS OR PAGE KEYS TO TRAVEL">
+        <div class="timeline-stage__counter" id="timelineCounter">MILESTONE 01 / 03</div>
+        <div class="interaction-guide" data-hint-controller data-hint-level="1" data-pointer-instruction="SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY" data-touch-instruction="SWIPE UP TO SCROLL THROUGH THE TIMELINE" data-keyboard-instruction="USE UP/DOWN ARROWS OR PAGE KEYS TO SCROLL">
           <span class="interaction-guide__text" id="timelineGuideText" aria-live="polite">SCROLL DOWN TO TRAVEL THROUGH THE SIGNAL JOURNEY</span>
           <span class="interaction-guide__demo" id="timelineGuideDemo" data-hint-demo hidden aria-hidden="true"></span>
           <button class="interaction-guide__show" id="timelineGuideShow" data-hint-replay type="button" hidden>SHOW GESTURE</button>
         </div>
+        <div id="timelineScrollRegion" tabindex="0" role="region" aria-label="Chronological memory milestones">
+          <!-- The vertical line SVG: it spans the height of the container -->
+          <svg id="timelineJourneyPath" viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true">
+            <line id="timelineBasePath" x1="10" y1="0" x2="10" y2="100" />
+            <line id="timelineProgressPath" x1="10" y1="0" x2="10" y2="0" />
+          </svg>
+          
+          <div class="timeline-cards">
+            <!-- Card 01 -->
+            <article class="timeline-card" data-timeline-index="0">
+              <span class="timeline-card__node" aria-hidden="true"></span>
+              <span class="timeline-card__watermark" aria-hidden="true">01</span>
+              <span class="timeline-card__phase">01 / FIRST DETECTION</span>
+              <h3>The first quiet spark</h3>
+              <p class="timeline-card__text">It began as a quiet curiosity—a simple awareness of Maureen that grew with each conversation and slowly became impossible to ignore.</p>
+            </article>
 
-        <div id="timelineScrollRegion" tabindex="0" role="region" aria-label="Chronological signal milestones" aria-describedby="timelineGuideText">
-          <div class="timeline-card-dock">
-            <article class="timeline-card timeline-card--sticky" id="timelineCard" aria-live="polite" aria-atomic="true" aria-busy="false">
-              <div class="timeline-card__topline">
-                <span id="timelinePhase">01 / FIRST DETECTION</span>
-                <span id="timelineCardStatus">CHANNEL 01 / OPEN</span>
-              </div>
-              <h3 id="timelineTitle">The first quiet spark</h3>
-              <p id="timelineText"></p>
-              <div class="timeline-card__footer" aria-hidden="true">
-                <span class="timeline-card__activity"><i></i> LIVE RECORD</span>
-                <span id="timelineReadCue">READING SIGNAL</span>
-              </div>
-              <div class="timeline-card__progress" aria-hidden="true"><i id="timelineCardProgress"></i></div>
+            <!-- Card 02 -->
+            <article class="timeline-card" data-timeline-index="1">
+              <span class="timeline-card__node" aria-hidden="true"></span>
+              <span class="timeline-card__watermark" aria-hidden="true">02</span>
+              <span class="timeline-card__phase">02 / STABLE SIGNAL</span>
+              <h3>Your presence became familiar</h3>
+              <p class="timeline-card__text">As your presence became familiar, small moments and conversations stayed with me, as if my heart had decided they were worth keeping.</p>
+            </article>
+
+            <!-- Card 03 -->
+            <article class="timeline-card" data-timeline-index="2">
+              <span class="timeline-card__node" aria-hidden="true"></span>
+              <span class="timeline-card__watermark" aria-hidden="true">03</span>
+              <span class="timeline-card__phase">03 / TRANSMISSION</span>
+              <h3>Ayyash finally sent the signal</h3>
+              <p class="timeline-card__text">Once the feeling became clear, it was no longer just admiration. Ayyash sent this signal because an honest feeling deserves the courage to be spoken.</p>
             </article>
           </div>
 
-          <div class="timeline-journey" id="timelineJourney">
-            <div class="timeline-reading-line" aria-hidden="true"><span>READ</span></div>
-            <svg id="timelineJourneyPath" viewBox="0 0 24 720" preserveAspectRatio="none" aria-hidden="true">
-              <path id="timelineBasePath" pathLength="100" d="M 12,24 L 12,696"/>
-              <path id="timelineProgressPath" pathLength="100" d="M 12,24 L 12,696"/>
-              <circle id="timelinePulse" cx="12" cy="24" r="5"/>
-            </svg>
-
-            <ol id="timelineCheckpoints">
-              <li class="timeline-checkpoint is-current" data-timeline-index="0" style="--step-index: 0">
-                <button type="button" aria-label="Open milestone 01, First Detection" aria-current="step">
-                  <span class="timeline-checkpoint__index">01</span>
-                  <span class="timeline-checkpoint__copy"><strong>FIRST DETECTION</strong><small>A quiet curiosity appears</small></span>
-                  <span class="timeline-checkpoint__state">ACTIVE</span>
-                </button>
-              </li>
-              <li class="timeline-checkpoint" data-timeline-index="1" style="--step-index: 1">
-                <button type="button" aria-label="Open milestone 02, Familiar Signal">
-                  <span class="timeline-checkpoint__index">02</span>
-                  <span class="timeline-checkpoint__copy"><strong>FAMILIAR SIGNAL</strong><small>The signal becomes familiar</small></span>
-                  <span class="timeline-checkpoint__state">QUEUED</span>
-                </button>
-              </li>
-              <li class="timeline-checkpoint" data-timeline-index="2" style="--step-index: 2">
-                <button type="button" aria-label="Open milestone 03, Stable Signal">
-                  <span class="timeline-checkpoint__index">03</span>
-                  <span class="timeline-checkpoint__copy"><strong>STABLE SIGNAL</strong><small>Small moments remain on record</small></span>
-                  <span class="timeline-checkpoint__state">QUEUED</span>
-                </button>
-              </li>
-              <li class="timeline-checkpoint" data-timeline-index="3" style="--step-index: 3">
-                <button type="button" aria-label="Open milestone 04, Emotional Confirmation">
-                  <span class="timeline-checkpoint__index">04</span>
-                  <span class="timeline-checkpoint__copy"><strong>EMOTIONAL CONFIRMATION</strong><small>The feeling becomes clear</small></span>
-                  <span class="timeline-checkpoint__state">QUEUED</span>
-                </button>
-              </li>
-              <li class="timeline-checkpoint" data-timeline-index="4" style="--step-index: 4">
-                <button type="button" aria-label="Open milestone 05, Message Transmission">
-                  <span class="timeline-checkpoint__index">05</span>
-                  <span class="timeline-checkpoint__copy"><strong>MESSAGE TRANSMISSION</strong><small>The signal is finally sent</small></span>
-                  <span class="timeline-checkpoint__state">QUEUED</span>
-                </button>
-              </li>
-            </ol>
-          </div>
-
           <div class="timeline-continue-wrapper">
-            <span>END OF RECOVERED SIGNAL / 05</span>
             <button class="primary-button" id="timelineFinalContinue" type="button" hidden>PROCEED TO BARRIER &rarr;</button>
           </div>
         </div>
@@ -351,15 +350,13 @@
           <i class="resonance__ring" data-ring-index="2"></i>
         </div>
         <svg id="barrierSvg" viewBox="0 0 200 200" aria-hidden="true">
-          <circle cx="100" cy="100" r="70" class="barrier-track" fill="none" stroke="rgba(255,51,95,0.25)" stroke-width="2"/>
+          <circle cx="100" cy="100" r="70" class="barrier-track" fill="none" stroke="rgba(0,159,227,0.1)" stroke-width="2"/>
           <path id="barrierWindowArc" d="" fill="none" stroke="var(--green)" stroke-width="6" stroke-linecap="round"/>
-          <circle id="barrierPulseDot" cx="100" cy="30" r="6" fill="var(--blue)"/>
+          <circle id="barrierPulseDotTrail3" cx="100" cy="30" r="5" fill="var(--blue)" opacity="0.15"/>
+          <circle id="barrierPulseDotTrail2" cx="100" cy="30" r="5.5" fill="var(--blue)" opacity="0.4"/>
+          <circle id="barrierPulseDotTrail1" cx="100" cy="30" r="6" fill="var(--blue)" opacity="0.7"/>
+          <circle id="barrierPulseDot" cx="100" cy="30" r="7.5" fill="var(--blue)"/>
         </svg>
-        <div id="barrierWindow"></div>
-        <div id="barrierPulse"></div>
-        <div id="barrierEmitter"></div>
-        <div id="barrierImpact"></div>
-        <div id="barrierShockwave"></div>
         <div class="resonance__readout">
           <span id="barrierNumber">100</span>
           <small>FIELD</small>
@@ -399,13 +396,21 @@
         <div class="letter-signature" id="letterSignature">&mdash; <span data-sender>Ayyash</span></div>
         <div id="letterReconstruct">
           <div id="letterReconstructField">
+            <!-- Subtle scan grid -->
+            <div class="arena-grid" aria-hidden="true"></div>
+            <!-- SVG layer for connection trails -->
+            <svg class="arena-svg" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;">
+              <g id="letterTrailsGroup"></g>
+            </svg>
             <div id="letterFragmentLayer" aria-hidden="true">
-              <span class="reconstruct__fragment" data-fragment-index="0">&sect; 01</span>
-              <span class="reconstruct__fragment" data-fragment-index="1">&sect; 02</span>
-              <span class="reconstruct__fragment" data-fragment-index="2">&sect; 03</span>
+              <span class="reconstruct__fragment" data-fragment-index="0"><i>&sect;</i> 01</span>
+              <span class="reconstruct__fragment" data-fragment-index="1"><i>&sect;</i> 02</span>
+              <span class="reconstruct__fragment" data-fragment-index="2"><i>&sect;</i> 03</span>
             </div>
-            <div id="letterReconstructZone" aria-hidden="true">TARGET</div>
-            <button id="letterOrb" type="button" aria-label="Magnetic reconstruction orb"></button>
+            <div id="letterReconstructZone" aria-hidden="true"><span>TARGET</span></div>
+            <button id="letterOrb" type="button" aria-label="Magnetic reconstruction orb">
+              <span class="orb-pulse" aria-hidden="true"></span>
+            </button>
           </div>
           <div id="letterReconstructStatus" aria-live="polite">RECONSTRUCTION / READY</div>
         </div>

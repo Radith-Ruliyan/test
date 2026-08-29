@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    AYYASH -> MAUREEN // PRIVATE EMOTIONAL SIGNAL INSTRUMENT
    Interaction Architecture, Mechanics & Geometry Controller (AI #3 Recovery)
    ========================================================================== */
@@ -16,11 +16,9 @@ const siteConfig = {
     { code: "OBS-05", title: "Why Ayyash made this message", text: "Because something this sincere should not remain hidden forever. You deserve to know how deeply your presence has mattered." }
   ],
   timeline: [
-    { phase: "01 / FIRST DETECTION", title: "The first quiet spark", text: "It began without a dramatic moment—just a quiet curiosity about Maureen that slowly became difficult to ignore." },
-    { phase: "02 / FAMILIAR SIGNAL", title: "Your presence became familiar", text: "The more familiar you became, the more naturally my thoughts began to return to you." },
-    { phase: "03 / STABLE SIGNAL", title: "The small moments stayed", text: "Words, expressions, and simple moments remained with me longer than I expected, as if my heart had decided they were worth keeping." },
-    { phase: "04 / EMOTIONAL CONFIRMATION", title: "The feeling became clear", text: "Eventually I understood that this was more than admiration. I cared about you in a sincere and gentle way." },
-    { phase: "05 / MESSAGE TRANSMISSION", title: "Ayyash finally sent the signal", text: "Not to force an answer, but because an honest feeling deserves the courage to be spoken." }
+    { phase: "01 / FIRST DETECTION", title: "The first quiet spark", text: "It began as a quiet curiosity—a simple awareness of Maureen that grew with each conversation and slowly became impossible to ignore." },
+    { phase: "02 / STABLE SIGNAL", title: "Your presence became familiar", text: "As your presence became familiar, small moments and conversations stayed with me, as if my heart had decided they were worth keeping." },
+    { phase: "03 / TRANSMISSION", title: "Ayyash finally sent the signal", text: "Once the feeling became clear, it was no longer just admiration. Ayyash sent this signal because an honest feeling deserves the courage to be spoken." }
   ],
   letter: [
     "Maureen, I never planned for you to become this important to me. It happened quietly, through small conversations, familiar moments, and the way your presence made ordinary days feel lighter.",
@@ -41,6 +39,7 @@ const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
 const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, reduceMotion.matches ? Math.min(ms, 40) : ms));
 
 function announce(message) {
   const region = $("#liveRegion");
@@ -966,122 +965,374 @@ const heroScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 2: CONNECTION (TUNE) â€” CONGRUENT POLAR ARC & ROTATION
+   SCENE MODULE 2: CONNECTION (TUNE) — POLISHED ROTARY FREQUENCY TUNER
    -------------------------------------------------------------------------- */
 const connectionScene = {
+  // DOM refs
   dial: null,
   needle: null,
   targetArc: null,
+  targetDot: null,
+  energyFill: null,
+  ringSecondary: null,
+  rotor: null,
+  handle: null,
+  scanLine: null,
+  dragHint: null,
   syncValEl: null,
   syncMsgEl: null,
+  syncStatusEl: null,
   freqEl: null,
-  angle: 0,
-  targetAngle: 135,
+  waveBlue: null,
+  wavePink: null,
+  waveMerged: null,
+
+  // State
+  angle: 0,           // current unwrapped display angle (0–360)
+  prevAngle: null,    // previous raw atan2 angle for unwrap
+  targetAngle: 135,   // degrees (0=top, CW)
   tolerance: 18,
   isTuning: false,
+  hintDismissed: false,
   lockTimer: null,
   completed: false,
+  rafId: null,
+
+  // Inertia
+  velocity: 0,
+  lastAngle: 0,
+  lastTime: 0,
+
+  // Detent / magnetic state
+  magneticActive: false,
+
+  // RAF-driven render target
+  _renderAngle: 0,
 
   init() {
-    this.dial = $("#connectionDial");
-    this.needle = $("#connectionNeedle");
-    this.targetArc = $("#connectionTargetArc");
-    this.syncValEl = $("#syncValue");
-    this.syncMsgEl = $("#syncMessage");
-    this.freqEl = $("#connectionFrequency");
+    this.dial       = $("#connectionDial");
+    this.needle     = $("#connectionNeedle");
+    this.targetArc  = $("#connectionTargetArc");
+    this.targetDot  = $("#connectionTargetDot");
+    this.energyFill = $("#dialEnergyFill");
+    this.ringSecondary = $("#dialRingSecondary");
+    this.rotor      = $("#dialRotor");
+    this.handle     = $("#connectionHandle");
+    this.scanLine   = $("#dialScanLine");
+    this.dragHint   = this.dial ? this.dial.querySelector(".dial__drag-hint") : null;
+    this.syncValEl  = $("#syncValue");
+    this.syncMsgEl  = $("#syncMessage");
+    this.syncStatusEl = $("#syncStatus");
+    this.freqEl     = $("#connectionFrequency");
+    this.waveBlue   = $("#connectionWaveBlue path");
+    this.wavePink   = $("#connectionWavePink path");
+    this.waveMerged = $("#connectionWaveMerged path");
 
     this.drawTargetArc();
+    this.placeTargetDot();
+    this.drawTicks();
+    this.initEnergyFill();
+    this.renderFrame(0);   // kick off RAF loop
 
-    if (this.dial) {
-      this.dial.addEventListener("pointerdown", (e) => this.onStart(e));
-      window.addEventListener("pointermove", (e) => this.onMove(e));
-      window.addEventListener("pointerup", () => this.onEnd());
-      window.addEventListener("pointercancel", () => this.onEnd());
+    if (!this.dial) return;
 
-      this.dial.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        this.updateAngle(this.angle + (e.deltaY > 0 ? 6 : -6));
-      }, { passive: false });
+    // Pointer events — capture on dial only
+    this.dial.addEventListener("pointerdown", (e) => this.onStart(e));
+    this.dial.addEventListener("pointermove", (e) => this.onMove(e));
+    this.dial.addEventListener("pointerup",   (e) => this.onEnd(e));
+    this.dial.addEventListener("pointercancel",(e) => this.onEnd(e));
+    this.dial.addEventListener("lostpointercapture", (e) => this.onEnd(e));
 
-      this.dial.addEventListener("keydown", (e) => {
-        if (this.completed) return;
-        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-          this.updateAngle(this.angle + (e.shiftKey ? 15 : 4));
-        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-          this.updateAngle(this.angle - (e.shiftKey ? 15 : 4));
-        } else if (e.key === "Home") {
-          this.updateAngle(0);
-        } else if (e.key === "End") {
-          this.updateAngle(360);
-        }
-      });
+    // Wheel on dial only (prevents page scroll hijacking)
+    this.dial.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      this.dismissHint();
+      const step = e.shiftKey ? 15 : 6;
+      this.setAngle(this.angle + (e.deltaY > 0 ? step : -step));
+    }, { passive: false });
+
+    // Keyboard
+    this.dial.addEventListener("keydown", (e) => {
+      if (this.completed) return;
+      let delta = 0;
+      if (e.key === "ArrowRight" || e.key === "ArrowUp")   delta =  (e.shiftKey ? 15 : 4);
+      if (e.key === "ArrowLeft"  || e.key === "ArrowDown") delta = -(e.shiftKey ? 15 : 4);
+      if (e.key === "Home") { this.setAngle(0); return; }
+      if (e.key === "End")  { this.setAngle(360); return; }
+      if (delta) { this.dismissHint(); this.setAngle(this.angle + delta); }
+    });
+
+    // ARIA slider attributes
+    this.dial.setAttribute("aria-valuemin", "0");
+    this.dial.setAttribute("aria-valuemax", "360");
+    this.dial.setAttribute("aria-valuenow", "0");
+    this.dial.setAttribute("aria-valuetext", "0 degrees");
+  },
+
+  /* ---- Geometry builders ---- */
+
+  drawTicks() {
+    const g = $("#connectionTickmarks");
+    if (!g) return;
+    g.innerHTML = "";
+    const cx = 100, cy = 100;
+    const r1 = 92, r2minor = 87, r2major = 84;
+    for (let i = 0; i < 72; i++) {
+      const deg = i * 5;
+      const rad = (deg - 90) * (Math.PI / 180);
+      const isMajor = i % 6 === 0;
+      const r2 = isMajor ? r2major : r2minor;
+      const x1 = cx + r1 * Math.cos(rad);
+      const y1 = cy + r1 * Math.sin(rad);
+      const x2 = cx + r2 * Math.cos(rad);
+      const y2 = cy + r2 * Math.sin(rad);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1.toFixed(2));
+      line.setAttribute("y1", y1.toFixed(2));
+      line.setAttribute("x2", x2.toFixed(2));
+      line.setAttribute("y2", y2.toFixed(2));
+      if (isMajor) line.classList.add("major");
+      g.appendChild(line);
     }
+  },
+
+  initEnergyFill() {
+    if (!this.energyFill) return;
+    const r = 78;
+    const circ = 2 * Math.PI * r;
+    this.energyFill.style.strokeDasharray = `${circ.toFixed(2)}`;
+    this.energyFill.style.strokeDashoffset = `${circ.toFixed(2)}`;
+    this.energyFill.setAttribute("transform", "rotate(-90 100 100)");
   },
 
   drawTargetArc() {
     if (!this.targetArc) return;
-    const cx = 100;
-    const cy = 100;
-    const r = 70;
+    const cx = 100, cy = 100, r = 70;
     const startDeg = this.targetAngle - this.tolerance;
-    const endDeg = this.targetAngle + this.tolerance;
-
-    const startRad = (startDeg - 90) * (Math.PI / 180);
-    const endRad = (endDeg - 90) * (Math.PI / 180);
-
-    const x1 = cx + r * Math.cos(startRad);
-    const y1 = cy + r * Math.sin(startRad);
-    const x2 = cx + r * Math.cos(endRad);
-    const y2 = cy + r * Math.sin(endRad);
-
+    const endDeg   = this.targetAngle + this.tolerance;
+    const s = (startDeg - 90) * (Math.PI / 180);
+    const e = (endDeg   - 90) * (Math.PI / 180);
+    const x1 = cx + r * Math.cos(s), y1 = cy + r * Math.sin(s);
+    const x2 = cx + r * Math.cos(e), y2 = cy + r * Math.sin(e);
     this.targetArc.setAttribute("d", `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)}`);
+  },
+
+  placeTargetDot() {
+    if (!this.targetDot) return;
+    const cx = 100, cy = 100, r = 78;
+    const rad = (this.targetAngle - 90) * (Math.PI / 180);
+    const x = cx + r * Math.cos(rad);
+    const y = cy + r * Math.sin(rad);
+    this.targetDot.setAttribute("cx", x.toFixed(2));
+    this.targetDot.setAttribute("cy", y.toFixed(2));
   },
 
   recalculateGeometry() {
     this.drawTargetArc();
+    this.placeTargetDot();
   },
+
+  /* ---- Pointer handlers ---- */
 
   onStart(e) {
     if (this.completed) return;
     this.isTuning = true;
+    this.prevAngle = null; // reset unwrap
     this.dial.classList.add("is-tuning");
-    this.dial.setPointerCapture?.(e.pointerId);
-    this.onMove(e);
+    this.dial.setPointerCapture(e.pointerId);
+    this.dismissHint();
+    // Init velocity tracking
+    const raw = this._rawAngle(e);
+    this.lastAngle = raw;
+    this.lastTime  = performance.now();
+    this.velocity  = 0;
+    this._moveFrom(e);
     hintController.notifyProgress();
   },
 
   onMove(e) {
-    if (!this.isTuning || this.completed || !this.dial) return;
-    const rect = this.dial.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const radians = Math.atan2(e.clientY - cy, e.clientX - cx);
-    let degrees = radians * (180 / Math.PI) + 90;
-    if (degrees < 0) degrees += 360;
-    this.updateAngle(degrees);
+    if (!this.isTuning || this.completed) return;
+    this._moveFrom(e);
   },
 
-  updateAngle(deg) {
-    this.angle = (deg % 360 + 360) % 360;
-    if (this.needle) this.needle.style.setProperty("--tuner-angle", `${this.angle}deg`);
-    if (this.dial) this.dial.setAttribute("aria-valuenow", String(Math.round(this.angle)));
+  onEnd(e) {
+    if (!this.isTuning) return;
+    this.isTuning = false;
+    this.dial.classList.remove("is-tuning");
+    // Release pointer capture
+    try { this.dial.releasePointerCapture(e.pointerId); } catch(_) {}
+    // Apply slight inertia
+    this._startInertia();
+  },
 
-    const diff = Math.abs(this.angle - this.targetAngle);
+  _rawAngle(e) {
+    const rect = this.dial.getBoundingClientRect();
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+    let deg = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI) + 90;
+    if (deg < 0) deg += 360;
+    return deg;
+  },
+
+  _moveFrom(e) {
+    const raw = this._rawAngle(e);
+    const now = performance.now();
+
+    // Angle unwrapping: prevent jumps across 0/360
+    let newAngle = this.angle;
+    if (this.prevAngle !== null) {
+      let delta = raw - this.prevAngle;
+      if (delta >  180) delta -= 360;
+      if (delta < -180) delta += 360;
+      newAngle = this.angle + delta;
+    } else {
+      newAngle = raw;
+    }
+    this.prevAngle = raw;
+
+    // Track velocity (deg/ms)
+    const dt = now - this.lastTime;
+    if (dt > 0) {
+      let velDelta = newAngle - this.lastAngle;
+      this.velocity = velDelta / dt;
+    }
+    this.lastAngle = newAngle;
+    this.lastTime  = now;
+
+    this.setAngle(newAngle);
+  },
+
+  _startInertia() {
+    if (reduceMotion.matches || Math.abs(this.velocity) < 0.05) return;
+    const inertiaStart = performance.now();
+    const startVel = this.velocity;
+    const startAngle = this.angle;
+    const damping = 0.92; // per-frame damping factor
+
+    const tick = (now) => {
+      if (this.isTuning || this.completed) return;
+      const elapsed = now - inertiaStart;
+      const frames  = elapsed / 16.67; // ~60fps frames elapsed
+      const vel     = startVel * Math.pow(damping, frames);
+      const newAngle = this.angle + vel * 16.67;
+      this.setAngle(newAngle);
+      if (Math.abs(vel) > 0.02) {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  },
+
+  /* ---- Core angle update ---- */
+
+  setAngle(deg) {
+    // Normalize to 0..360
+    let a = ((deg % 360) + 360) % 360;
+
+    // Compute error
+    const diff = Math.abs(a - this.targetAngle);
     const error = Math.min(180, diff > 180 ? 360 - diff : diff);
-    const stability = Math.max(0, Math.round(100 - (error / 90) * 100));
 
-    if (this.syncValEl) this.syncValEl.textContent = String(stability).padStart(2, "0");
-    if (this.freqEl) this.freqEl.textContent = `${(100 + (this.angle * 0.3)).toFixed(2)} MHz`;
-
-    const syncPanel = $("#syncPanel");
-    if (syncPanel) {
-      syncPanel.style.setProperty("--frequency-error", String(error));
-      syncPanel.style.setProperty("--signal-stability", String(stability));
+    // Gentle magnetic pull when within 2× tolerance
+    if (!this.completed && error < this.tolerance * 2) {
+      const pull = (1 - error / (this.tolerance * 2)) * 0.08;
+      a = a + (this.targetAngle - a) * pull;
+      a = ((a % 360) + 360) % 360;
     }
 
+    // Soft detent at target (within tolerance)
+    if (!this.completed && error < this.tolerance) {
+      const detentStrength = (1 - error / this.tolerance) * 0.18;
+      a = a + (this.targetAngle - a) * detentStrength;
+      a = ((a % 360) + 360) % 360;
+    }
+
+    this.angle = a;
+    this._renderAngle = a;
+    this.updateVisuals(a, error);
+  },
+
+  /* ---- Visual updates (RAF-driven) ---- */
+
+  renderFrame(ts) {
+    if (!this.completed) {
+      this.rafId = requestAnimationFrame((t) => this.renderFrame(t));
+    }
+    // Visual rotation elements — driven by current angle
+    const a = this._renderAngle;
+    if (this.needle)       this.needle.style.transform        = `rotate(${a}deg)`;
+    if (this.ringSecondary) this.ringSecondary.style.transform = `rotate(${(-0.35 * a).toFixed(2)}deg)`;
+    if (this.rotor)        this.rotor.style.transform         = `rotate(${a.toFixed(2)}deg)`;
+    if (this.handle)       this.handle.style.transform        = `rotate(${(0.55 * a).toFixed(2)}deg)`;
+  },
+
+  updateVisuals(angle, error) {
+    const stability = Math.max(0, Math.round(100 - (error / this.tolerance) * 100));
+    const pct = Math.max(0, Math.min(100, stability));
+
+    // ARIA
+    if (this.dial) {
+      this.dial.setAttribute("aria-valuenow",   String(Math.round(angle)));
+      this.dial.setAttribute("aria-valuetext",  `${Math.round(angle)} degrees, ${pct}% signal stability`);
+    }
+
+    // Sync panel CSS vars
+    const syncPanel = $("#syncPanel");
+    if (syncPanel) {
+      syncPanel.style.setProperty("--frequency-error",   String(error));
+      syncPanel.style.setProperty("--signal-stability",  String(pct));
+    }
+
+    // Readout %
+    if (this.syncValEl) this.syncValEl.textContent = String(pct).padStart(2, "0");
+
+    // Frequency display
+    const freq = (100 + angle * 0.3).toFixed(2);
+    if (this.freqEl) this.freqEl.textContent = `${freq} MHz`;
+
+    // Energy fill arc
+    if (this.energyFill) {
+      const r    = 78;
+      const circ = 2 * Math.PI * r;
+      const fill = circ * (pct / 100);
+      this.energyFill.style.strokeDashoffset = (circ - fill).toFixed(2);
+    }
+
+    // Waveforms: cyan and pink converge as stability rises
+    if (this.waveBlue && this.wavePink && this.waveMerged) {
+      const t    = pct / 100;          // 0 → 1
+      const amp  = 22 * (1 - t);       // amplitude shrinks to 0 at lock
+      const pAmp = 22 * (1 - t);       // pink amplitude also shrinks
+      const bluePath = `M 0,30 Q 75,${(30 - amp).toFixed(1)} 150,30 Q 225,${(30 + amp).toFixed(1)} 300,30`;
+      const pinkPath = `M 0,30 Q 75,${(30 + pAmp).toFixed(1)} 150,30 Q 225,${(30 - pAmp).toFixed(1)} 300,30`;
+      // At 100%, both collapse to flat line
+      this.waveBlue.setAttribute("d", bluePath);
+      this.wavePink.setAttribute("d", pinkPath);
+      this.waveMerged.setAttribute("d", `M 0,30 Q 75,30 150,30 T 300,30`);
+    }
+
+    // Status text with 5 states
+    let statusText;
+    if (pct === 0)         statusText = "STANDBY";
+    else if (pct < 25)     statusText = "SEARCHING";
+    else if (pct < 60)     statusText = "SIGNAL DETECTED";
+    else if (pct < 100)    statusText = "FINE TUNING";
+    else                   statusText = "FREQUENCY LOCKED";
+
+    if (this.syncStatusEl) this.syncStatusEl.textContent = statusText;
+
+    // Message
+    if (this.syncMsgEl && !this.completed) {
+      if (pct < 25)        this.syncMsgEl.textContent = "Rotate the dial to align the two waveforms.";
+      else if (pct < 60)   this.syncMsgEl.textContent = "Signal detected. Keep tuning for a stable lock.";
+      else if (pct < 100)  this.syncMsgEl.textContent = "Fine tuning... hold steady near the target.";
+      else                 this.syncMsgEl.textContent = "Frequency locked. Stabilizing connection…";
+    }
+
+    // Lock state
     if (error <= this.tolerance) {
       if (this.dial) this.dial.classList.add("is-matched");
-      if (!this.lockTimer) {
+      if (!this.lockTimer && !this.completed) {
         this.lockTimer = window.setTimeout(() => this.complete(), 480);
       }
     } else {
@@ -1093,19 +1344,26 @@ const connectionScene = {
     }
   },
 
-  onEnd() {
-    this.isTuning = false;
-    if (this.dial) this.dial.classList.remove("is-tuning");
+  dismissHint() {
+    if (this.hintDismissed || !this.dragHint) return;
+    this.hintDismissed = true;
+    this.dragHint.classList.add("is-hidden");
   },
+
+  /* ---- Completion ---- */
 
   complete() {
     if (this.completed) return;
     this.completed = true;
-    this.isTuning = false;
+    this.isTuning  = false;
+
+    // Stop RAF loop
+    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
 
     const syncPanel = $("#syncPanel");
     if (syncPanel) syncPanel.classList.add("is-complete");
     if (this.syncMsgEl) this.syncMsgEl.textContent = siteConfig.syncMessage;
+    if (this.syncStatusEl) this.syncStatusEl.textContent = "FREQUENCY LOCKED";
 
     soundSystem.playInterface();
     announce(siteConfig.syncMessage);
@@ -1115,20 +1373,40 @@ const connectionScene = {
     }, 850);
   },
 
+  /* ---- Lifecycle ---- */
+
   enter() {
     this.recalculateGeometry();
+    // Re-kick RAF loop if returning to scene
+    if (!this.completed && !this.rafId) {
+      this.rafId = requestAnimationFrame((t) => this.renderFrame(t));
+    }
   },
+
   exit() {
     this.isTuning = false;
     if (this.lockTimer) clearTimeout(this.lockTimer);
+    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
   },
+
   reset() {
-    this.completed = false;
-    this.isTuning = false;
-    this.angle = 0;
-    this.updateAngle(0);
+    this.completed        = false;
+    this.isTuning         = false;
+    this.hintDismissed    = false;
+    this.angle            = 0;
+    this._renderAngle     = 0;
+    this.velocity         = 0;
+    this.prevAngle        = null;
+    if (this.lockTimer) { clearTimeout(this.lockTimer); this.lockTimer = null; }
+    // Reset hint
+    if (this.dragHint) this.dragHint.classList.remove("is-hidden");
+    // Reset state
     const syncPanel = $("#syncPanel");
     if (syncPanel) syncPanel.classList.remove("is-complete");
+    if (this.dial)  this.dial.classList.remove("is-matched", "is-tuning");
+    this.setAngle(0);
+    // Re-kick RAF
+    if (!this.rafId) this.rafId = requestAnimationFrame((t) => this.renderFrame(t));
   }
 };
 
@@ -1519,67 +1797,31 @@ const recordsScene = {
 };
 
 /* --------------------------------------------------------------------------
-   SCENE MODULE 4: TIMELINE (TRAVEL) — PACED, GEOMETRY-DRIVEN JOURNEY
+   SCENE MODULE 4: TIMELINE (TRAVEL) â€” REAL CHECKPOINT MEASUREMENTS
    -------------------------------------------------------------------------- */
 const timelineScene = {
-  SCROLL_SETTLE_MS: 280,
-  MESSAGE_HOLD_MS: 1250,
-  MESSAGE_TRANSITION_MS: 180,
-  READING_LINE_RATIO: 0.62,
-
   scrollRoot: null,
   scrollRegion: null,
-  journey: null,
-  card: null,
-  checkpoints: [],
-  meterSegments: [],
-  basePath: null,
+  cards: [],
   progressPath: null,
-  pulseDot: null,
   continueBtn: null,
-  currentMilestone: 0,
-  renderedMilestone: -1,
-  candidateMilestone: 0,
-  pendingMilestone: null,
-  checkpointCenters: [],
-  checkpointLocalCenters: [],
-  pathStartY: 24,
-  pathEndY: 696,
-  scrollRaf: null,
-  settleTimer: null,
-  holdTimer: null,
-  enterTimer: null,
-  isTransitioning: false,
-  isActive: false,
-  holdUntil: 0,
-  transitionToken: 0,
+  currentMilestone: -1,
+  observer: null,
+  scrollListenerAttached: false,
+  finalRevealed: false,
+  rafId: null,
 
   init() {
     this.scrollRoot = $(".scene--timeline");
     this.scrollRegion = $("#timelineScrollRegion");
-    this.journey = $("#timelineJourney");
-    this.card = $("#timelineCard");
-    this.checkpoints = $$(".timeline-checkpoint");
-    this.meterSegments = $$("#timelineMeter i");
-    this.basePath = $("#timelineBasePath");
+    this.cards = $$(".timeline-card");
     this.progressPath = $("#timelineProgressPath");
-    this.pulseDot = $("#timelinePulse");
     this.continueBtn = $("#timelineFinalContinue");
 
-    if (this.scrollRoot) {
-      this.scrollRoot.addEventListener("scroll", () => this.onScroll(), { passive: true });
+    if (this.scrollRoot && !this.scrollListenerAttached) {
+      this.scrollRoot.addEventListener("scroll", () => this.queueScroll(), { passive: true });
+      this.scrollListenerAttached = true;
     }
-
-    if (this.scrollRegion) {
-      this.scrollRegion.addEventListener("keydown", (event) => this.onKeyDown(event));
-    }
-
-    this.checkpoints.forEach((checkpoint, idx) => {
-      const button = checkpoint.querySelector("button");
-      if (button) {
-        button.addEventListener("click", () => this.scrollToCheckpoint(idx));
-      }
-    });
 
     if (this.continueBtn) {
       this.continueBtn.addEventListener("click", () => {
@@ -1587,365 +1829,127 @@ const timelineScene = {
       });
     }
 
-    this.paintMilestoneState(0, false);
-  },
+    // Set up IntersectionObserver to detect active cards
+    if (this.cards.length > 0) {
+      const observerOptions = {
+        root: this.scrollRoot,
+        rootMargin: "-25% 0px -25% 0px",
+        threshold: 0.1
+      };
 
-  wait(ms) {
-    return new Promise(resolve => window.setTimeout(resolve, ms));
-  },
+      this.observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.dataset.timelineIndex, 10);
+            if (!isNaN(idx)) {
+              this.applyMilestone(idx);
+            }
+          }
+        });
+      }, observerOptions);
 
-  clearTimers() {
-    if (this.settleTimer) clearTimeout(this.settleTimer);
-    if (this.holdTimer) clearTimeout(this.holdTimer);
-    if (this.enterTimer) clearTimeout(this.enterTimer);
-    if (this.scrollRaf !== null) cancelAnimationFrame(this.scrollRaf);
-    this.settleTimer = null;
-    this.holdTimer = null;
-    this.enterTimer = null;
-    this.scrollRaf = null;
+      this.cards.forEach((card) => {
+        this.observer.observe(card);
+        // Let clicking on a card scroll it smoothly into view
+        card.addEventListener("click", () => {
+          card.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "center" });
+        });
+      });
+    }
   },
 
   recalculateGeometry() {
-    if (!this.scrollRoot || !this.journey || this.checkpoints.length === 0) return;
+    this.paintProgress();
+  },
 
-    const rootRect = this.scrollRoot.getBoundingClientRect();
-    const journeyRect = this.journey.getBoundingClientRect();
-    const rootScrollTop = this.scrollRoot.scrollTop;
-    const svgTopOffset = 40;
-    const svgHeight = Math.max(720, this.journey.offsetHeight - svgTopOffset);
+  paintProgress() {
+    if (!this.scrollRoot) return;
+    const maxScroll = this.scrollRoot.scrollHeight - this.scrollRoot.clientHeight;
+    const ratio = maxScroll > 0 ? clamp(this.scrollRoot.scrollTop / maxScroll, 0, 1) : 0;
 
-    this.checkpointCenters = this.checkpoints.map(checkpoint => {
-      const rect = checkpoint.getBoundingClientRect();
-      return rect.top - rootRect.top + rootScrollTop + (rect.height / 2);
+    if (this.progressPath) {
+      // Just update the Y2 of the line directly to represent percentage filled
+      this.progressPath.setAttribute("y2", `${(ratio * 100).toFixed(1)}%`);
+    }
+  },
+
+  queueScroll() {
+    if (this.rafId) return;
+    this.rafId = window.requestAnimationFrame(() => {
+      this.rafId = null;
+      this.onScroll();
     });
-
-    this.checkpointLocalCenters = this.checkpoints.map(checkpoint => {
-      const rect = checkpoint.getBoundingClientRect();
-      return clamp(rect.top - journeyRect.top + (rect.height / 2) - svgTopOffset, 16, svgHeight - 16);
-    });
-
-    this.pathStartY = this.checkpointLocalCenters[0] || 24;
-    this.pathEndY = this.checkpointLocalCenters[this.checkpointLocalCenters.length - 1] || (svgHeight - 24);
-
-    const svg = $("#timelineJourneyPath");
-    if (svg) svg.setAttribute("viewBox", `0 0 24 ${svgHeight.toFixed(1)}`);
-
-    const pathData = `M 12,${this.pathStartY.toFixed(1)} L 12,${this.pathEndY.toFixed(1)}`;
-    if (this.basePath) this.basePath.setAttribute("d", pathData);
-    if (this.progressPath) this.progressPath.setAttribute("d", pathData);
-
-    this.renderScrollState(false);
   },
 
   onScroll() {
-    if (!this.isActive || !this.scrollRoot) return;
-    hintController.notifyProgress();
-
-    if (this.scrollRaf !== null) return;
-    this.scrollRaf = requestAnimationFrame(() => {
-      this.scrollRaf = null;
-      this.renderScrollState(true);
-    });
+    this.paintProgress();
   },
 
-  renderScrollState(scheduleMessage = true) {
-    if (!this.scrollRoot || this.checkpointCenters.length === 0) return;
-
-    const readingPosition = this.scrollRoot.scrollTop + (this.scrollRoot.clientHeight * this.READING_LINE_RATIO);
-    let nearestIndex = 0;
-    let nearestDistance = Infinity;
-
-    this.checkpointCenters.forEach((center, idx) => {
-      const distance = Math.abs(center - readingPosition);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = idx;
-      }
-    });
-
-    this.candidateMilestone = nearestIndex;
-
-    const firstCenter = this.checkpointCenters[0];
-    const lastCenter = this.checkpointCenters[this.checkpointCenters.length - 1];
-    const travel = lastCenter > firstCenter
-      ? clamp((readingPosition - firstCenter) / (lastCenter - firstCenter), 0, 1)
-      : 0;
-
-    if (this.progressPath) {
-      this.progressPath.style.strokeDashoffset = String((100 - (travel * 100)).toFixed(2));
-    }
-    if (this.pulseDot) {
-      const pulseY = this.pathStartY + (travel * (this.pathEndY - this.pathStartY));
-      this.pulseDot.setAttribute("cy", pulseY.toFixed(1));
-    }
-    if (this.scrollRoot) {
-      this.scrollRoot.style.setProperty("--timeline-progress", travel.toFixed(4));
-    }
-
-    if (!scheduleMessage) return;
-
-    if (this.settleTimer) clearTimeout(this.settleTimer);
-    this.settleTimer = window.setTimeout(() => {
-      this.settleTimer = null;
-      this.requestMilestone(this.candidateMilestone);
-    }, this.SCROLL_SETTLE_MS);
-  },
-
-  requestMilestone(idx, options = {}) {
-    const target = clamp(idx, 0, this.checkpoints.length - 1);
-    const immediate = Boolean(options.immediate);
-    const silent = Boolean(options.silent);
-
-    if (!this.isActive && !immediate) return;
-    if (target === this.renderedMilestone && !this.isTransitioning) return;
-
-    if (this.isTransitioning) {
-      this.pendingMilestone = target;
-      return;
-    }
-
-    const remainingHold = this.holdUntil - performance.now();
-    if (!immediate && remainingHold > 0) {
-      this.pendingMilestone = target;
-      this.setReadCue("PAUSE / READING SIGNAL");
-      if (this.holdTimer) clearTimeout(this.holdTimer);
-      this.holdTimer = window.setTimeout(() => this.releaseMessageHold(), remainingHold);
-      return;
-    }
-
-    this.commitMilestone(target, { immediate, silent });
-  },
-
-  async commitMilestone(idx, options = {}) {
-    const data = siteConfig.timeline[idx];
-    if (!data || !this.card) return;
-
-    const immediate = Boolean(options.immediate);
-    const silent = Boolean(options.silent);
-    const token = ++this.transitionToken;
-    this.isTransitioning = true;
-    this.pendingMilestone = null;
-    if (this.holdTimer) clearTimeout(this.holdTimer);
-    this.holdTimer = null;
-
-    this.card.setAttribute("aria-busy", "true");
-    this.card.classList.add("is-decoding");
-    this.card.classList.toggle("is-changing", !immediate && !reduceMotion.matches);
-    this.setReadCue("DECODING NEXT SIGNAL");
-    this.setCardStatus(idx, "DECODING");
-
-    if (!immediate && !reduceMotion.matches) {
-      await this.wait(this.MESSAGE_TRANSITION_MS);
-    }
-    if (token !== this.transitionToken || !this.isActive) return;
-
+  applyMilestone(idx) {
+    if (idx === this.currentMilestone) return;
     this.currentMilestone = idx;
-    this.paintMilestoneState(idx, true);
 
-    const phaseEl = $("#timelinePhase");
-    const titleEl = $("#timelineTitle");
-    const textEl = $("#timelineText");
+    this.cards.forEach((card, i) => {
+      card.classList.toggle("is-active", i === idx);
+      card.classList.toggle("is-completed", i < idx);
+    });
+
     const counterEl = $("#timelineCounter");
-
-    if (phaseEl) phaseEl.textContent = data.phase;
-    if (titleEl) titleEl.textContent = data.title;
-    if (counterEl) counterEl.textContent = `MILESTONE 0${idx + 1} / 05`;
-    if (textEl) textEl.textContent = "";
-
-    this.card.classList.remove("is-changing");
-    this.card.classList.add("is-entering");
-
-    if (textEl) await decryptText(textEl, data.text);
-    if (token !== this.transitionToken || !this.isActive) return;
-
-    this.renderedMilestone = idx;
-    this.isTransitioning = false;
-    this.holdUntil = performance.now() + this.MESSAGE_HOLD_MS;
-    this.card.setAttribute("aria-busy", "false");
-    this.card.classList.remove("is-decoding");
-    this.setCardStatus(idx, "STABLE");
-    this.setReadCue("PAUSE / READING SIGNAL");
-
-    this.enterTimer = window.setTimeout(() => {
-      if (token === this.transitionToken && this.card) {
-        this.card.classList.remove("is-entering");
-      }
-    }, 380);
-
-    if (!silent) soundSystem.playInterface();
-
-    this.holdTimer = window.setTimeout(() => this.releaseMessageHold(), this.MESSAGE_HOLD_MS);
-    requestAnimationFrame(() => this.recalculateGeometry());
-  },
-
-  releaseMessageHold() {
-    this.holdTimer = null;
-    this.holdUntil = 0;
-
-    const pending = this.pendingMilestone;
-    this.pendingMilestone = null;
-
-    if (pending !== null && pending !== this.renderedMilestone) {
-      this.commitMilestone(pending);
-      return;
+    if (counterEl) {
+      counterEl.textContent = `MILESTONE 0${idx + 1} / 03`;
     }
 
-    if (this.currentMilestone === this.checkpoints.length - 1) {
-      this.setReadCue("SIGNAL JOURNEY COMPLETE");
-      if (this.continueBtn) this.continueBtn.hidden = false;
-    } else {
-      this.setReadCue("SCROLL FOR NEXT SIGNAL");
+    soundSystem.playInterface();
+    announce(`Timeline milestone ${idx + 1} activated.`);
+
+    if (idx === 2) {
+      this.revealContinue();
     }
   },
 
-  paintMilestoneState(idx, markCurrent = true) {
-    this.checkpoints.forEach((checkpoint, checkpointIndex) => {
-      const isCurrent = markCurrent && checkpointIndex === idx;
-      const isComplete = checkpointIndex < idx;
-      const button = checkpoint.querySelector("button");
-      const state = checkpoint.querySelector(".timeline-checkpoint__state");
-
-      checkpoint.classList.toggle("is-current", isCurrent);
-      checkpoint.classList.toggle("is-completed", isComplete);
-
-      if (button) {
-        if (isCurrent) button.setAttribute("aria-current", "step");
-        else button.removeAttribute("aria-current");
-      }
-      if (state) {
-        state.textContent = isCurrent ? "ACTIVE" : (isComplete ? "LOGGED" : "QUEUED");
-      }
-    });
-
-    this.meterSegments.forEach((segment, segmentIndex) => {
-      segment.classList.toggle("is-active", markCurrent && segmentIndex === idx);
-      segment.classList.toggle("is-complete", segmentIndex < idx);
-    });
-
-    const percent = $("#timelinePercent");
-    if (percent) percent.textContent = `${Math.round(((idx + 1) / this.checkpoints.length) * 100)}% LOGGED`;
-    if (this.scrollRoot) {
-      this.scrollRoot.style.setProperty("--card-progress", String((idx + 1) / this.checkpoints.length));
-    }
-    if (this.continueBtn && idx !== this.checkpoints.length - 1) {
-      this.continueBtn.hidden = true;
-    }
-  },
-
-  setCardStatus(idx, state) {
-    const status = $("#timelineCardStatus");
-    if (status) status.textContent = `CHANNEL 0${idx + 1} / ${state}`;
-  },
-
-  setReadCue(message) {
-    const cue = $("#timelineReadCue");
-    if (cue) cue.textContent = message;
-  },
-
-  scrollToCheckpoint(idx) {
-    if (!this.scrollRoot || !this.checkpoints[idx]) return;
-
-    const rootRect = this.scrollRoot.getBoundingClientRect();
-    const checkpointRect = this.checkpoints[idx].getBoundingClientRect();
-    const checkpointCenter = checkpointRect.top - rootRect.top + this.scrollRoot.scrollTop + (checkpointRect.height / 2);
-    const targetTop = clamp(
-      checkpointCenter - (this.scrollRoot.clientHeight * this.READING_LINE_RATIO),
-      0,
-      this.scrollRoot.scrollHeight - this.scrollRoot.clientHeight
-    );
-
-    this.candidateMilestone = idx;
-    this.scrollRoot.scrollTo({
-      top: targetTop,
-      behavior: reduceMotion.matches ? "auto" : "smooth"
-    });
-
-    if (reduceMotion.matches) {
-      this.renderScrollState(false);
-      this.requestMilestone(idx);
-    }
-  },
-
-  onKeyDown(event) {
-    if (!this.scrollRoot || sceneManager.currentScene !== "timeline") return;
-    if ((event.key === "Enter" || event.key === " ") && event.target.closest("button")) return;
-
-    let destination = null;
-    const lineStep = Math.max(72, this.scrollRoot.clientHeight * 0.18);
-    const pageStep = this.scrollRoot.clientHeight * 0.72;
-
-    if (event.key === "ArrowDown") destination = this.scrollRoot.scrollTop + lineStep;
-    else if (event.key === "ArrowUp") destination = this.scrollRoot.scrollTop - lineStep;
-    else if (event.key === "PageDown") destination = this.scrollRoot.scrollTop + pageStep;
-    else if (event.key === "PageUp") destination = this.scrollRoot.scrollTop - pageStep;
-    else if (event.key === "Home") destination = 0;
-    else if (event.key === "End") destination = this.scrollRoot.scrollHeight;
-
-    if (destination === null) return;
-    event.preventDefault();
-    this.scrollRoot.scrollTo({
-      top: clamp(destination, 0, this.scrollRoot.scrollHeight - this.scrollRoot.clientHeight),
-      behavior: reduceMotion.matches ? "auto" : "smooth"
-    });
-    hintController.notifyProgress();
-  },
-
-  setMilestone(idx) {
-    this.requestMilestone(idx);
+  revealContinue() {
+    if (this.finalRevealed || !this.continueBtn) return;
+    this.finalRevealed = true;
+    this.continueBtn.hidden = false;
+    announce("Final transmission unlocked. Continue to proceed.");
   },
 
   enter() {
-    this.clearTimers();
-    this.transitionToken += 1;
-    this.isActive = true;
-    this.isTransitioning = false;
-    this.currentMilestone = 0;
-    this.renderedMilestone = -1;
-    this.candidateMilestone = 0;
-    this.pendingMilestone = null;
-    this.holdUntil = 0;
+    this.currentMilestone = -1;
+    this.finalRevealed = false;
     if (this.continueBtn) this.continueBtn.hidden = true;
     if (this.scrollRoot) this.scrollRoot.scrollTop = 0;
-    if (this.card) {
-      this.card.classList.remove("is-changing", "is-entering", "is-decoding");
-      this.card.setAttribute("aria-busy", "false");
-    }
-    this.paintMilestoneState(0, true);
-
-    requestAnimationFrame(() => {
-      this.recalculateGeometry();
-      this.requestMilestone(0, { immediate: true, silent: true });
+    this.paintProgress();
+    
+    // Reset all cards
+    this.cards.forEach((card) => {
+      card.classList.remove("is-active", "is-completed");
     });
+
+    // Make sure elements are observed
+    if (this.observer) {
+      this.cards.forEach((card) => {
+        this.observer.unobserve(card);
+        this.observer.observe(card);
+      });
+    }
   },
 
   exit() {
-    this.isActive = false;
-    this.clearTimers();
-    this.transitionToken += 1;
-    this.isTransitioning = false;
-    this.pendingMilestone = null;
-    if (this.card) {
-      this.card.classList.remove("is-changing", "is-entering", "is-decoding");
-      this.card.setAttribute("aria-busy", "false");
+    if (this.rafId) {
+      window.cancelAnimationFrame(this.rafId);
+      this.rafId = null;
     }
   },
 
   reset() {
-    this.exit();
-    this.currentMilestone = 0;
-    this.renderedMilestone = -1;
-    this.candidateMilestone = 0;
-    this.holdUntil = 0;
-    if (this.scrollRoot) {
-      this.scrollRoot.scrollTop = 0;
-      this.scrollRoot.style.setProperty("--timeline-progress", "0");
-    }
-    if (this.progressPath) this.progressPath.style.strokeDashoffset = "100";
-    if (this.pulseDot) this.pulseDot.setAttribute("cy", String(this.pathStartY.toFixed(1)));
+    this.currentMilestone = -1;
+    this.finalRevealed = false;
+    if (this.scrollRoot) this.scrollRoot.scrollTop = 0;
     if (this.continueBtn) this.continueBtn.hidden = true;
-    this.paintMilestoneState(0, true);
-    this.setCardStatus(0, "OPEN");
-    this.setReadCue("READING SIGNAL");
+    this.cards.forEach((card) => {
+      card.classList.remove("is-active", "is-completed");
+    });
   }
 };
 
@@ -1960,11 +1964,16 @@ const barrierScene = {
   feedbackEl: null,
   pulseDot: null,
   windowArc: null,
+  trailDots: [],
   pulsePhase: 0,
-  loopTimer: null,
   windowTarget: 0.5,
-  windowTolerance: 0.14,
+  windowTolerance: 0.12,
   completed: false,
+  rafId: null,
+  lastTime: 0,
+  history: [],
+  missTimeout: null,
+  breachProgress: 1, // 0 to 1 countdown
 
   init() {
     this.button = $("#barrierButton");
@@ -1975,10 +1984,21 @@ const barrierScene = {
     this.pulseDot = $("#barrierPulseDot");
     this.windowArc = $("#barrierWindowArc");
 
+    this.trailDots = [
+      $("#barrierPulseDotTrail1"),
+      $("#barrierPulseDotTrail2"),
+      $("#barrierPulseDotTrail3")
+    ];
+
     this.drawWindowArc();
 
     if (this.button) {
       this.button.addEventListener("click", () => this.releasePulse());
+    }
+
+    if (this.visual) {
+      // Tap on visual element also releases the pulse
+      this.visual.addEventListener("click", () => this.releasePulse());
     }
 
     window.addEventListener("keydown", (e) => {
@@ -1993,9 +2013,7 @@ const barrierScene = {
 
   drawWindowArc() {
     if (!this.windowArc) return;
-    const cx = 100;
-    const cy = 100;
-    const r = 70;
+    const cx = 100, cy = 100, r = 70;
     const startPhase = this.windowTarget - this.windowTolerance;
     const endPhase = this.windowTarget + this.windowTolerance;
 
@@ -2015,19 +2033,74 @@ const barrierScene = {
   },
 
   startLoop() {
-    clearInterval(this.loopTimer);
-    this.loopTimer = setInterval(() => {
-      this.pulsePhase = (this.pulsePhase + 0.016) % 1;
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+    }
+    this.lastTime = performance.now();
+    this.rafId = requestAnimationFrame((ts) => this.loop(ts));
+  },
 
-      // Move pulse along the track
-      if (this.pulseDot) {
-        const rad = (this.pulsePhase * 2 * Math.PI) - Math.PI / 2;
-        const cx = 100 + 70 * Math.cos(rad);
-        const cy = 100 + 70 * Math.sin(rad);
-        this.pulseDot.setAttribute("cx", cx.toFixed(2));
-        this.pulseDot.setAttribute("cy", cy.toFixed(2));
+  loop(now) {
+    if (this.completed) return;
+    this.rafId = requestAnimationFrame((ts) => this.loop(ts));
+
+    // Drive phase update
+    const delta = reduceMotion.matches ? 0.016 : Math.min(0.1, (now - this.lastTime) / 1000);
+    this.lastTime = now;
+
+    // Pulse speeds around the circle (0.32 cycles per second)
+    this.pulsePhase = (this.pulsePhase + delta * 0.32) % 1;
+
+    // Record phase history for trail dots
+    this.history.unshift(this.pulsePhase);
+    if (this.history.length > 20) {
+      this.history.pop();
+    }
+
+    // Move main pulse
+    this.updateDotPosition(this.pulseDot, this.pulsePhase);
+
+    // Move trails
+    this.trailDots.forEach((trail, i) => {
+      if (trail) {
+        const histIndex = (i + 1) * 3;
+        const phase = this.history[histIndex] ?? this.pulsePhase;
+        this.updateDotPosition(trail, phase);
       }
-    }, 25);
+    });
+
+    // Determine current feedback based on visible alignment
+    let diff = Math.abs(this.pulsePhase - this.windowTarget);
+    if (diff > 0.5) diff = 1 - diff;
+
+    if (!this.missTimeout) {
+      if (diff <= this.windowTolerance) {
+        if (this.feedbackEl) {
+          this.feedbackEl.textContent = "READY / RELEASE NOW";
+          this.feedbackEl.style.color = "var(--green)";
+        }
+      } else if (diff <= this.windowTolerance * 2.2) {
+        if (this.feedbackEl) {
+          this.feedbackEl.textContent = "NEAR / RESONANCE DETECTED";
+          this.feedbackEl.style.color = "var(--sky-3)";
+        }
+      } else {
+        if (this.feedbackEl) {
+          this.feedbackEl.textContent = "SEARCHING / FIELD STABLE";
+          this.feedbackEl.style.color = "var(--ink-soft)";
+        }
+      }
+    }
+  },
+
+  updateDotPosition(el, phase) {
+    if (!el) return;
+    const cx = 100, cy = 100, r = 70;
+    const rad = (phase * 2 * Math.PI) - Math.PI / 2;
+    const x = cx + r * Math.cos(rad);
+    const y = cy + r * Math.sin(rad);
+    el.setAttribute("cx", x.toFixed(2));
+    el.setAttribute("cy", y.toFixed(2));
   },
 
   releasePulse() {
@@ -2035,63 +2108,112 @@ const barrierScene = {
     hintController.notifyProgress();
     soundSystem.playInterface();
 
-    const diff = Math.abs(this.pulsePhase - this.windowTarget);
+    let diff = Math.abs(this.pulsePhase - this.windowTarget);
+    if (diff > 0.5) diff = 1 - diff;
 
     if (diff <= this.windowTolerance) {
       this.complete();
     } else {
-      if (this.pulsePhase < this.windowTarget) {
-        if (this.feedbackEl) this.feedbackEl.textContent = "EARLY PULSE / ADJUST TIMING";
-      } else {
-        if (this.feedbackEl) this.feedbackEl.textContent = "LATE PULSE / RELEASE WHEN PULSE ENTERS WINDOW";
+      // Missed timing
+      if (this.missTimeout) clearTimeout(this.missTimeout);
+
+      if (this.feedbackEl) {
+        this.feedbackEl.style.color = "var(--red)";
+        if (diff <= this.windowTolerance * 2.2) {
+          this.feedbackEl.textContent = "NEAR MISS / ADJUST FOCUS";
+        } else {
+          this.feedbackEl.textContent = "MISS / TIMING DESYNCHRONIZED";
+        }
       }
-      this.windowTolerance = Math.min(0.28, this.windowTolerance + 0.02);
-      this.drawWindowArc();
+
+      // Add a quick temporary red flash to the visual field
+      if (this.visual) {
+        this.visual.style.boxShadow = "0 0 20px rgba(255, 51, 95, 0.4)";
+        setTimeout(() => {
+          if (this.visual) this.visual.style.boxShadow = "";
+        }, 300);
+      }
+
+      this.missTimeout = setTimeout(() => {
+        this.missTimeout = null;
+      }, 1000);
     }
   },
 
   complete() {
     if (this.completed) return;
     this.completed = true;
-    clearInterval(this.loopTimer);
 
-    if (this.feedbackEl) this.feedbackEl.textContent = "RESONANCE SYNCHRONIZED / BARRIER BREACHED";
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+
+    if (this.feedbackEl) {
+      this.feedbackEl.textContent = "LOCKED / RESONANCE ALIGNED";
+      this.feedbackEl.style.color = "var(--green)";
+    }
     if (this.visual) this.visual.classList.add("is-open");
 
-    let step = 0;
-    const steps = [100, 67, 33, 0];
-    const countInterval = setInterval(() => {
-      step++;
-      const val = steps[step] ?? 0;
-      if (this.numberEl) this.numberEl.textContent = String(val);
-      if (this.barEl) this.barEl.style.width = `${val}%`;
+    // Unified transition countdown in RAF
+    this.breachProgress = 1;
+    this.lastTime = performance.now();
+    requestAnimationFrame((ts) => this.breachLoop(ts));
+  },
 
-      if (step >= steps.length - 1) {
-        clearInterval(countInterval);
-        announce("Emotional barrier opened. Sincere message ready.");
-        window.setTimeout(() => {
-          sceneManager.advanceTo("letter");
-        }, 650);
-      }
-    }, 200);
+  breachLoop(now) {
+    const elapsed = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+
+    // Countdown over 1.2 seconds
+    this.breachProgress = Math.max(0, this.breachProgress - elapsed / 1.2);
+    const val = Math.round(this.breachProgress * 100);
+
+    if (this.numberEl) this.numberEl.textContent = String(val);
+    if (this.barEl) this.barEl.style.width = `${val}%`;
+
+    if (this.breachProgress > 0) {
+      requestAnimationFrame((ts) => this.breachLoop(ts));
+    } else {
+      announce("Emotional barrier opened. Sincere message ready.");
+      setTimeout(() => {
+        sceneManager.advanceTo("letter");
+      }, 650);
+    }
   },
 
   enter() {
     this.recalculateGeometry();
     this.startLoop();
   },
+
   exit() {
-    clearInterval(this.loopTimer);
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    if (this.missTimeout) {
+      clearTimeout(this.missTimeout);
+      this.missTimeout = null;
+    }
   },
+
   reset() {
     this.completed = false;
     this.pulsePhase = 0;
-    this.windowTolerance = 0.14;
-    this.drawWindowArc();
+    this.history = [];
+    this.breachProgress = 1;
+    if (this.missTimeout) {
+      clearTimeout(this.missTimeout);
+      this.missTimeout = null;
+    }
     if (this.visual) this.visual.classList.remove("is-open");
     if (this.numberEl) this.numberEl.textContent = "100";
     if (this.barEl) this.barEl.style.width = "100%";
-    if (this.feedbackEl) this.feedbackEl.textContent = "PULSE READY / TIMING CRITICAL";
+    if (this.feedbackEl) {
+      this.feedbackEl.textContent = "PULSE READY / TIMING CRITICAL";
+      this.feedbackEl.style.color = "var(--red)";
+    }
   }
 };
 
@@ -2107,16 +2229,28 @@ const letterScene = {
   counterEl: null,
   copyEl: null,
   sealBtn: null,
-  orbX: 30,
-  orbY: 50,
-  placedCount: 0,
+  trailsGroup: null,
+
+  // Local pixel coordinates (recalculated on resize/enter)
+  arenaWidth: 0,
+  arenaHeight: 0,
+  orbX: 0, // px
+  orbY: 0, // px
   isDragging: false,
-  attractedFragment: null,
-  fragCoords: [
-    { x: 15, y: 25 },
-    { x: 45, y: 55 },
-    { x: 75, y: 25 }
+  placedCount: 0,
+  completed: false,
+  resizeHandler: null,
+  rafId: null,
+
+  // Define uncollected fragment coordinates as percentages
+  fragmentsData: [
+    { percentX: 18, percentY: 30, xPx: 0, yPx: 0, renderX: 0, renderY: 0, collected: false, element: null },
+    { percentX: 48, percentY: 68, xPx: 0, yPx: 0, renderX: 0, renderY: 0, collected: false, element: null },
+    { percentX: 72, percentY: 32, xPx: 0, yPx: 0, renderX: 0, renderY: 0, collected: false, element: null }
   ],
+
+  // Target center coordinates (computed as percent of arena)
+  targetData: { percentX: 90, percentY: 50, xPx: 0, yPx: 0 },
 
   init() {
     this.field = $("#letterReconstructField");
@@ -2127,11 +2261,19 @@ const letterScene = {
     this.counterEl = $("#letterCounter");
     this.copyEl = $("#letterCopy");
     this.sealBtn = $("#letterSeal");
+    this.trailsGroup = $("#letterTrailsGroup");
 
-    if (this.field) {
-      this.field.addEventListener("pointerdown", (e) => this.onPointerDown(e));
-      window.addEventListener("pointermove", (e) => this.onPointerMove(e));
-      window.addEventListener("pointerup", () => { this.isDragging = false; });
+    // Link elements to data array
+    this.fragmentsData.forEach((data, idx) => {
+      data.element = this.fragments[idx];
+    });
+
+    if (this.field && this.orb) {
+      // Pointer capture on the orb button
+      this.orb.addEventListener("pointerdown", (e) => this.onStart(e));
+      this.field.addEventListener("pointermove", (e) => this.onMove(e));
+      this.field.addEventListener("pointerup", (e) => this.onEnd(e));
+      this.field.addEventListener("pointercancel", (e) => this.onEnd(e));
     }
 
     if (this.sealBtn) {
@@ -2139,73 +2281,192 @@ const letterScene = {
         sceneManager.advanceTo("response");
       });
     }
+
+    this.resizeHandler = () => this.measureArena();
+    window.addEventListener("resize", this.resizeHandler);
   },
 
-  onPointerDown(e) {
-    this.isDragging = true;
-    this.onPointerMove(e);
-    hintController.notifyProgress();
-  },
-
-  onPointerMove(e) {
-    if (!this.isDragging || !this.field) return;
+  measureArena() {
+    if (!this.field) return;
     const rect = this.field.getBoundingClientRect();
-    this.orbX = clamp(((e.clientX - rect.left) / rect.width) * 100, 6, 94);
-    this.orbY = clamp(((e.clientY - rect.top) / rect.height) * 100, 10, 90);
+    this.arenaWidth = rect.width || 1;
+    this.arenaHeight = rect.height || 1;
 
-    if (this.orb) {
-      this.orb.style.left = `${this.orbX}%`;
-      this.orb.style.top = `${this.orbY}%`;
-    }
-
-    this.checkFragments();
-  },
-
-  checkFragments() {
-    this.fragCoords.forEach((pt, idx) => {
-      const frag = this.fragments[idx];
-      if (!frag || frag.classList.contains("is-placed")) return;
-
-      const dist = Math.hypot(this.orbX - pt.x, this.orbY - pt.y);
-      if (dist <= 16) {
-        frag.classList.add("is-attracted");
-        this.attractedFragment = idx;
+    // Convert uncollected fragment coordinates to pixels
+    this.fragmentsData.forEach((pt) => {
+      pt.xPx = (pt.percentX / 100) * this.arenaWidth;
+      pt.yPx = (pt.percentY / 100) * this.arenaHeight;
+      if (!pt.collected) {
+        pt.renderX = pt.xPx;
+        pt.renderY = pt.yPx;
       }
     });
 
-    // Check if attracted fragment is brought to the Target Zone (right side >= 72%)
-    if (this.attractedFragment !== null && this.orbX >= 72) {
-      this.placeFragment(this.attractedFragment);
-      this.attractedFragment = null;
+    // Target receiver pixel coordinate
+    this.targetData.xPx = (this.targetData.percentX / 100) * this.arenaWidth;
+    this.targetData.yPx = (this.targetData.percentY / 100) * this.arenaHeight;
+    
+    if (this.zone) {
+      this.zone.style.left = `${this.targetData.xPx}px`;
+      this.zone.style.top = `${this.targetData.yPx}px`;
+    }
+
+    // If starting or resetting, place the orb at a safe initial offset (e.g. 8% X, 50% Y)
+    if (!this.isDragging && this.placedCount === 0 && !this.completed) {
+      this.orbX = 0.08 * this.arenaWidth;
+      this.orbY = 0.50 * this.arenaHeight;
+      this.updateOrbPosition();
     }
   },
 
-  placeFragment(idx) {
-    const frag = this.fragments[idx];
-    if (!frag || frag.classList.contains("is-placed")) return;
+  onStart(e) {
+    if (this.completed) return;
+    this.isDragging = true;
+    this.orb.setPointerCapture(e.pointerId);
+    this.orb.classList.add("is-dragging");
+    hintController.notifyProgress();
+    e.preventDefault();
+  },
 
-    frag.classList.add("is-placed");
-    frag.classList.remove("is-attracted");
+  onMove(e) {
+    if (!this.isDragging || !this.field) return;
+    const rect = this.field.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Clamp boundary coordinates inside the field
+    this.orbX = clamp(x, 18, this.arenaWidth - 18);
+    this.orbY = clamp(y, 18, this.arenaHeight - 18);
+
+    this.updateOrbPosition();
+  },
+
+  onEnd(e) {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+    if (this.orb) {
+      this.orb.classList.remove("is-dragging");
+      try { this.orb.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+  },
+
+  updateOrbPosition() {
+    if (this.orb) {
+      this.orb.style.left = `${this.orbX}px`;
+      this.orb.style.top = `${this.orbY}px`;
+    }
+  },
+
+  startUpdateLoop() {
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    const tick = () => {
+      this.updateFrame();
+      this.rafId = requestAnimationFrame(tick);
+    };
+    this.rafId = requestAnimationFrame(tick);
+  },
+
+  updateFrame() {
+    if (!this.field) return;
+
+    const magneticRadius = 85; // px
+    const collectRadius = 24;  // px
+
+    // Draw trails SVG paths
+    let trailsHtml = "";
+
+    this.fragmentsData.forEach((pt, idx) => {
+      if (pt.collected) return;
+
+      // Distance from orb center
+      const dx = this.orbX - pt.xPx;
+      const dy = this.orbY - pt.yPx;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      if (dist <= magneticRadius) {
+        // Apply magnetic pull - move the rendering coordinate towards the orb
+        const pull = (1 - dist / magneticRadius) * 0.45;
+        pt.renderX = pt.xPx + dx * pull;
+        pt.renderY = pt.yPx + dy * pull;
+
+        if (pt.element) {
+          pt.element.classList.add("is-attracted");
+        }
+
+        // Draw active connecting line to uncollected fragment
+        const intensity = (1 - dist / magneticRadius).toFixed(2);
+        trailsHtml += `<line x1="${this.orbX.toFixed(1)}" y1="${this.orbY.toFixed(1)}" x2="${pt.renderX.toFixed(1)}" y2="${pt.renderY.toFixed(1)}" stroke="var(--red)" stroke-width="${(2.5 * intensity).toFixed(1)}" opacity="${intensity}" stroke-dasharray="2 2" />`;
+      } else {
+        // Return back to initial anchor point
+        pt.renderX = pt.renderX + (pt.xPx - pt.renderX) * 0.15;
+        pt.renderY = pt.renderY + (pt.yPx - pt.renderY) * 0.15;
+
+        if (pt.element) {
+          pt.element.classList.remove("is-attracted");
+        }
+      }
+
+      // Render the current element position
+      if (pt.element) {
+        pt.element.style.left = `${pt.renderX}px`;
+        pt.element.style.top = `${pt.renderY}px`;
+      }
+
+      // Check collection threshold
+      if (dist <= collectRadius) {
+        this.collectFragment(idx);
+      }
+    });
+
+    if (this.trailsGroup) {
+      this.trailsGroup.innerHTML = trailsHtml;
+    }
+
+    // Check target validation when all collected
+    if (this.placedCount === 3 && !this.completed) {
+      // Activate Target Feedback
+      if (this.zone) this.zone.classList.add("is-active");
+
+      const tDx = this.orbX - this.targetData.xPx;
+      const tDy = this.orbY - this.targetData.yPx;
+      const tDist = Math.hypot(tDx, tDy) || 1;
+
+      if (tDist <= 28) {
+        this.triggerLockCompletion();
+      }
+    }
+  },
+
+  collectFragment(idx) {
+    const pt = this.fragmentsData[idx];
+    if (!pt || pt.collected) return;
+
+    pt.collected = true;
     this.placedCount++;
 
+    if (pt.element) {
+      pt.element.classList.remove("is-attracted");
+      pt.element.classList.add("is-placed");
+    }
+
     soundSystem.playInterface();
-    this.showFragmentText(this.placedCount - 1);
+    this.revealFragmentText(this.placedCount - 1);
 
     if (this.counterEl) {
       this.counterEl.textContent = `MESSAGE FRAGMENT 0${this.placedCount} / 03`;
     }
 
-    if (this.placedCount >= 3) {
-      if (this.statusEl) this.statusEl.textContent = "LETTER RESTORED / SEAL READY";
-      if (this.sealBtn) {
-        this.sealBtn.disabled = false;
-        this.sealBtn.hidden = false;
+    if (this.statusEl) {
+      if (this.placedCount < 3) {
+        this.statusEl.textContent = `RECONSTRUCTING... FRAGMENT 0${this.placedCount} UNLOCKED`;
+      } else {
+        this.statusEl.textContent = "LETTER RESTORED / ACTIVATE TARGET RECEIVER";
+        announce("All fragments collected. Guide the orb into the target receiver.");
       }
-      announce("Letter completely reconstructed. Open response channel.");
     }
   },
 
-  showFragmentText(idx) {
+  revealFragmentText(idx) {
     const text = siteConfig.letter[idx];
     if (!text || !this.copyEl) return;
 
@@ -2218,25 +2479,91 @@ const letterScene = {
     decryptText(p, text);
   },
 
-  enter() {
-    if (this.copyEl && this.copyEl.children.length === 0) {
-      this.showFragmentText(0);
-      this.placeFragment(0);
+  triggerLockCompletion() {
+    if (this.completed) return;
+    this.completed = true;
+
+    // Stop loops
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+
+    this.isDragging = false;
+
+    // Lock position to target center
+    this.orbX = this.targetData.xPx;
+    this.orbY = this.targetData.yPx;
+    this.updateOrbPosition();
+
+    if (this.orb) {
+      this.orb.classList.add("is-locked");
+    }
+
+    if (this.zone) {
+      this.zone.classList.remove("is-active");
+      this.zone.classList.add("is-locked");
+    }
+
+    soundSystem.playInterface();
+    announce("Message reconstruction complete. Private channel open.");
+
+    if (this.statusEl) this.statusEl.textContent = "TRANSMISSION CHANNELS ESTABLISHED";
+
+    if (this.sealBtn) {
+      this.sealBtn.disabled = false;
+      this.sealBtn.hidden = false;
     }
   },
+
+  enter() {
+    this.completed = false;
+    this.measureArena();
+    this.startUpdateLoop();
+
+    // Start with 0 unrevealed items
+    if (this.copyEl) this.copyEl.innerHTML = "";
+    if (this.counterEl) this.counterEl.textContent = "MESSAGE FRAGMENT 00 / 03";
+    if (this.statusEl) this.statusEl.textContent = "RECONSTRUCTION READY / START GUIDING ORB";
+  },
+
   exit() {
     this.isDragging = false;
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
   },
+
   reset() {
     this.placedCount = 0;
-    this.attractedFragment = null;
-    this.fragments.forEach(f => f.classList.remove("is-attracted", "is-placed"));
+    this.completed = false;
+    this.isDragging = false;
+
+    if (this.orb) {
+      this.orb.classList.remove("is-dragging", "is-locked");
+    }
+    if (this.zone) {
+      this.zone.classList.remove("is-active", "is-locked");
+    }
+
+    this.fragmentsData.forEach((pt) => {
+      pt.collected = false;
+      if (pt.element) {
+        pt.element.classList.remove("is-attracted", "is-placed");
+      }
+    });
+
+    if (this.copyEl) this.copyEl.innerHTML = "";
+    if (this.counterEl) this.counterEl.textContent = "MESSAGE FRAGMENT 00 / 03";
+    if (this.statusEl) this.statusEl.textContent = "RECONSTRUCTION READY / START GUIDING ORB";
     if (this.sealBtn) {
       this.sealBtn.disabled = true;
       this.sealBtn.hidden = true;
     }
-    if (this.copyEl) this.copyEl.innerHTML = "";
-    if (this.counterEl) this.counterEl.textContent = "MESSAGE FRAGMENT 00 / 03";
+
+    this.measureArena();
+    this.startUpdateLoop();
   }
 };
 
