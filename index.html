@@ -381,24 +381,40 @@
     <section class="scene scene--letter" data-scene="letter" data-chapter="06" aria-label="Private message" aria-hidden="true">
       <span class="scene-code" aria-hidden="true">06</span>
       
+      <!-- Permanent background flowers (behind the card) -->
+      <div class="letter-flower-bg" id="letterFlowerBg" aria-hidden="true"></div>
+
       <div class="envelope-container" id="envelopeContainer">
         <p class="eyebrow"><span>TO</span> <b data-recipient>Maureen</b></p>
         <h2>A message beyond<br><em>the interface.</em></h2>
 
         <div class="mecha-envelope" id="mechaEnvelope" role="button" tabindex="0" aria-label="Tap seal to open message" aria-expanded="false">
-          <div class="mecha-envelope__latch mecha-envelope__latch--left"></div>
-          <div class="mecha-envelope__latch mecha-envelope__latch--right"></div>
-          
-          <div class="mecha-envelope__panel mecha-envelope__panel--bottom">
+          <!-- Back Shell Panel -->
+          <div class="mecha-envelope__back"></div>
+
+          <!-- Left Sliding Lock -->
+          <div class="mecha-envelope__lock mecha-envelope__lock--left"></div>
+          <!-- Right Sliding Lock -->
+          <div class="mecha-envelope__lock mecha-envelope__lock--right"></div>
+
+          <!-- Bottom Flap/Shell Plate -->
+          <div class="mecha-envelope__plate mecha-envelope__plate--bottom">
             <div class="mecha-envelope__scan-grid"></div>
-            <div class="mecha-envelope__status-line mecha-envelope__status-line--cyan"></div>
-            <div class="mecha-envelope__status-line mecha-envelope__status-line--pink"></div>
-          </div>
-          
-          <div class="mecha-envelope__panel mecha-envelope__panel--top" id="mechaTopFlap">
-            <div class="mecha-envelope__scan-grid"></div>
+            <!-- Cyan Accent Line -->
+            <div class="mecha-envelope__accent mecha-envelope__accent--cyan"></div>
           </div>
 
+          <!-- Top Flap (Hinged at the top) -->
+          <div class="mecha-envelope__flap" id="mechaTopFlap">
+            <div class="mecha-envelope__flap-hinge"></div>
+            <div class="mecha-envelope__flap-face">
+              <div class="mecha-envelope__scan-grid"></div>
+              <!-- Pink Accent Line -->
+              <div class="mecha-envelope__accent mecha-envelope__accent--pink"></div>
+            </div>
+          </div>
+
+          <!-- Central Seal -->
           <div class="mecha-envelope__seal" id="mechaSeal">
             <div class="mecha-envelope__seal-glow"></div>
             <div class="mecha-envelope__seal-core"></div>
@@ -413,7 +429,9 @@
         <div class="letter-card__top"><span>UNSENT MESSAGE / RECOVERED</span><span>PRIVATE</span></div>
         <div class="letter-copy" id="letterCopy" aria-live="polite"></div>
         <div class="letter-signature" id="letterSignature">&mdash; <span data-sender>Ayyash</span></div>
-        <button class="primary-button" id="letterContinue" type="button">CONTINUE TO RESPONSE &rarr;</button>
+        <div class="letter-actions">
+          <button class="primary-button" id="letterContinue" type="button">CONTINUE TO RESPONSE &rarr;</button>
+        </div>
       </article>
     </section>
 

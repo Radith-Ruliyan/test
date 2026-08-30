@@ -2225,6 +2225,7 @@ const letterScene = {
   container: null,
   messageView: null,
   flowerContainer: null,
+  flowerBg: null,
   copyEl: null,
   continueBtn: null,
   isOpened: false,
@@ -2236,6 +2237,7 @@ const letterScene = {
     this.container = $("#envelopeContainer");
     this.messageView = $("#letterMessageView");
     this.flowerContainer = $("#flowerContainer");
+    this.flowerBg = $("#letterFlowerBg");
     this.copyEl = $("#letterCopy");
     this.continueBtn = $("#letterContinue");
 
@@ -2251,6 +2253,8 @@ const letterScene = {
 
     if (this.continueBtn) {
       this.continueBtn.addEventListener("click", () => {
+        if (this.continueBtn.disabled) return;
+        this.continueBtn.disabled = true;
         sceneManager.advanceTo("response");
       });
     }
@@ -2267,7 +2271,6 @@ const letterScene = {
     }
 
     // Sequence: seal activates -> latches retract -> panels shift -> top flap unfolds
-    // Wait for envelope animation, then spawn flowers
     this.addTimer(() => {
       this.spawnFlowers();
     }, 800);
@@ -2292,13 +2295,12 @@ const letterScene = {
       this.createFlower(startX, startY, true, i);
     }
 
-    // After flowers cover the screen, show message
+    // After flowers cover the screen, show message & background flowers
     this.addTimer(() => {
       if (this.container) {
-        this.container.style.opacity = "0";
-        this.container.style.transform = "scale(0.9)";
-        this.container.style.pointerEvents = "none";
+        this.container.style.display = "none";
       }
+      this.createBackgroundFlowers();
       this.showMessage();
       this.fadeFlowers();
     }, 2500);
@@ -2347,6 +2349,40 @@ const letterScene = {
     }, delay);
   },
 
+  createBackgroundFlowers() {
+    if (!this.flowerBg) return;
+    this.flowerBg.innerHTML = "";
+    this.flowerBg.classList.add("is-visible");
+
+    // Spawn 16 background flowers
+    const count = 16;
+    for (let i = 0; i < count; i++) {
+      const fl = document.createElement("img");
+      fl.src = "assets/forget-me-not.png";
+      fl.className = "bg-flower";
+      fl.alt = "";
+
+      fl.style.left = (Math.random() * 100) + "%";
+      fl.style.top = (Math.random() * 100) + "%";
+      
+      const size = 30 + Math.random() * 50;
+      fl.style.width = size + "px";
+      fl.style.height = "auto";
+
+      const rot = Math.random() * 360;
+      fl.style.transform = `rotate(${rot}deg)`;
+      fl.style.opacity = (0.1 + Math.random() * 0.15).toFixed(2);
+
+      if (i % 4 === 0) {
+        fl.classList.add("bg-flower--drifting");
+        fl.style.animationDelay = `-${Math.random() * 20}s`;
+        fl.style.animationDuration = `${15 + Math.random() * 15}s`;
+      }
+
+      this.flowerBg.appendChild(fl);
+    }
+  },
+
   fadeFlowers() {
     const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const fadeDuration = isReduced ? 0 : 2000;
@@ -2357,12 +2393,35 @@ const letterScene = {
         fl.style.opacity = "0";
         fl.style.transform += " translateY(50px) rotate(20deg)";
       });
+      // Physically remove foreground flowers
+      this.addTimer(() => {
+        this.flowers.forEach(fl => {
+          if (fl.parentNode) fl.parentNode.removeChild(fl);
+        });
+        this.flowers = [];
+      }, fadeDuration + 100);
     }, 1000);
   },
 
   showMessage() {
     this.messageView.hidden = false;
     this.messageView.classList.add("is-visible");
+
+    // Reset scene scroll position to top
+    const sceneEl = this.messageView.closest(".scene");
+    if (sceneEl) {
+      requestAnimationFrame(() => {
+        sceneEl.scrollTop = 0;
+      });
+    }
+
+    // Set focus safely
+    this.messageView.setAttribute("tabindex", "-1");
+    this.messageView.focus({ preventScroll: true });
+
+    if (this.continueBtn) {
+      this.continueBtn.disabled = false;
+    }
     
     if (this.copyEl) {
       this.copyEl.innerHTML = "";
@@ -2394,6 +2453,14 @@ const letterScene = {
 
   exit() {
     this.clearTimers();
+    if (this.flowerContainer) {
+      this.flowerContainer.innerHTML = "";
+    }
+    if (this.flowerBg) {
+      this.flowerBg.innerHTML = "";
+      this.flowerBg.classList.remove("is-visible");
+    }
+    this.flowers = [];
   },
 
   reset() {
@@ -2404,9 +2471,10 @@ const letterScene = {
       this.envelope.setAttribute("aria-expanded", "false");
     }
     if (this.container) {
-      this.container.style.opacity = "1";
-      this.container.style.transform = "none";
-      this.container.style.pointerEvents = "auto";
+      this.container.style.display = "";
+      this.container.style.opacity = "";
+      this.container.style.transform = "";
+      this.container.style.pointerEvents = "";
     }
     if (this.messageView) {
       this.messageView.hidden = true;
@@ -2418,9 +2486,17 @@ const letterScene = {
     if (this.flowerContainer) {
       this.flowerContainer.innerHTML = "";
     }
+    if (this.flowerBg) {
+      this.flowerBg.innerHTML = "";
+      this.flowerBg.classList.remove("is-visible");
+    }
+    if (this.continueBtn) {
+      this.continueBtn.disabled = false;
+    }
     this.flowers = [];
   }
 };
+
 
 /* --------------------------------------------------------------------------
    SCENE MODULE 7: RESPONSE (CHOOSE) â€” SAFE BOUNDED DRIFT
