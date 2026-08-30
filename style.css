@@ -620,35 +620,96 @@ h1 em, h2 em {
   object-fit: contain;
 }
 
-/* Stage 1 — draw-in */
-.chapter-transition[data-shape-stage="draw"] .transition-asset-slot {
-  opacity: 1;
-  transform: scale(1);
-  transition: opacity 0.5s var(--ease-out-back), transform 0.5s var(--ease-out-back);
+/* Chapter transitions keyframe animations */
+@keyframes trans-hero {
+  0% { transform: translateY(50px) scale(0.85); opacity: 0; }
+  25% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(0) scaleY(1.06); opacity: 1; }
+  75% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-40px) scale(0.7); opacity: 0; }
 }
 
-/* Stage 2 — hold */
-.chapter-transition[data-shape-stage="hold"] .transition-asset-slot {
-  opacity: 1;
-  transform: scale(1);
+@keyframes trans-connection {
+  0% { transform: rotate(-35deg) scale(0.65); opacity: 0; }
+  25% { transform: rotate(0deg) scale(1); opacity: 1; }
+  50% { transform: rotate(6deg) scale(1.04); opacity: 1; }
+  75% { transform: rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: rotate(35deg) scale(1.15); opacity: 0; }
 }
 
-/* Stage 3 — release / exit (only the slot animates, copy stays put) */
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot {
-  opacity: 0;
-  transform: scale(1.15);
-  transition: opacity 0.36s ease, transform 0.36s var(--ease-signal);
+@keyframes trans-records {
+  0% { transform: scale(0.6); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  45% { transform: scale(1.1); opacity: 1; }
+  55% { transform: scale(0.96); opacity: 1; }
+  65% { transform: scale(1.1); opacity: 1; }
+  75% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 
-/* Semantic exit variations — transform-only, never moves copy below */
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-initializing    { transform: scaleY(0.1);                  opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-calibration     { transform: scale(1.2) rotate(10deg);     opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-emotional-signal{ transform: scale(0.7);                   opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-synchronization { transform: translateY(-20px) scale(0.9); opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-decoding        { transform: scale(1.4);                   opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-memory          { transform: translateY(20px) scale(0.9);  opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-connection      { transform: scale(0.6);                   opacity: 0; }
-.chapter-transition[data-shape-stage="release"] .transition-asset-slot.is-question        { transform: scale(1.5);                   opacity: 0; }
+@keyframes trans-timeline {
+  0% { transform: translateX(-80px) scale(0.9); opacity: 0; }
+  25% { transform: translateX(0) scale(1); opacity: 1; }
+  50% { transform: translateX(0) scaleX(1.08); opacity: 1; }
+  75% { transform: translateX(0) scale(1); opacity: 1; }
+  100% { transform: translateX(80px) scale(0.9); opacity: 0; }
+}
+
+@keyframes trans-barrier {
+  0% { transform: translateY(-60px) scale(0.9); opacity: 0; }
+  25% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(0) scaleY(0.92); opacity: 1; }
+  75% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(30px) scale(0.85); opacity: 0; }
+}
+
+@keyframes trans-letter {
+  0% { transform: scale(0.75) rotate(-6deg); opacity: 0; }
+  25% { transform: scale(1) rotate(-3deg); opacity: 1; }
+  45% { transform: scale(1.04) rotate(3deg); opacity: 1; }
+  55% { transform: scale(1) rotate(-3deg); opacity: 1; }
+  75% { transform: scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(24px) scale(0.9); opacity: 0; }
+}
+
+@keyframes trans-response {
+  0% { transform: translate(24px, 24px) scale(0.65); opacity: 0; }
+  25% { transform: translate(0, 0) scale(1); opacity: 1; }
+  50% { transform: translate(0, 0) scale(1.06); opacity: 1; }
+  75% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-24px, -24px) scale(1.25); opacity: 0; }
+}
+
+@keyframes trans-reply {
+  0% { transform: scale(1.35); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 1; }
+  75% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.65); opacity: 0; }
+}
+
+@keyframes transitionFadeOnly {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Active transitions per scene class */
+.chapter-transition.is-active.is-hero .transition-asset-slot { animation: trans-hero 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-connection .transition-asset-slot { animation: trans-connection 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-records .transition-asset-slot { animation: trans-records 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-timeline .transition-asset-slot { animation: trans-timeline 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-barrier .transition-asset-slot { animation: trans-barrier 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-letter .transition-asset-slot { animation: trans-letter 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-response .transition-asset-slot { animation: trans-response 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.chapter-transition.is-active.is-reply .transition-asset-slot { animation: trans-reply 1.48s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-transition.is-active .transition-asset-slot {
+    animation: transitionFadeOnly 1.48s linear forwards !important;
+  }
+}
 
 /* ---- Copy block: phase number + label + progress bar ---- */
 .chapter-transition__copy {
@@ -2481,19 +2542,32 @@ h1 em, h2 em {
   width: 100%;
   height: 100%;
   position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-top: calc(var(--safe-top) + var(--topbar-h) + 16px);
-  padding-bottom: calc(100px + env(safe-area-inset-bottom, 16px));
+  overflow: hidden;
+  padding-top: calc(var(--safe-top) + var(--topbar-h) + 12px);
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 16px));
+}
+
+.letter-stage {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  height: clamp(380px, 70vh, 520px);
+  margin: auto 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .envelope-container {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: 100%;
-  max-width: 600px;
-  margin: auto 0;
+  height: 100%;
   z-index: 10;
   transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
 }
@@ -2733,27 +2807,24 @@ h1 em, h2 em {
 }
 
 /* --- Background Flowers Pop Animation --- */
-@keyframes flowerPop {
+@keyframes flowerGridPop {
   0% {
-    transform: translate(var(--tx), var(--ty)) scale(0) rotate(0deg);
+    transform: scale(0) rotate(0deg);
     opacity: 0;
   }
-  60% {
-    transform: translate(calc(var(--tx) * 0.4), calc(var(--ty) * 0.4)) scale(1.15) rotate(calc(var(--rot) * 0.6));
+  70% {
+    transform: scale(1.12) rotate(calc(var(--rot) * 0.7));
     opacity: 1;
-  }
-  85% {
-    transform: translate(calc(var(--tx) * 0.15), calc(var(--ty) * 0.15)) scale(0.95) rotate(calc(var(--rot) * 0.85));
   }
   100% {
-    transform: translate(0, 0) scale(1) rotate(var(--rot));
-    opacity: 1;
+    transform: scale(1) rotate(var(--rot));
+    opacity: var(--op);
   }
 }
 
 @keyframes flowerFadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to { opacity: var(--op); }
 }
 
 .letter-flower-bg {
@@ -2778,13 +2849,13 @@ h1 em, h2 em {
   display: block;
 }
 
-.bg-flower--animate {
+.bg-flower--grid-animate {
   will-change: transform, opacity;
-  animation: flowerPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: flowerGridPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .bg-flower--reduced {
-  transform: rotate(var(--rot));
+  transform: scale(1) rotate(var(--rot));
   animation: flowerFadeIn 0.3s ease forwards;
 }
 
@@ -2803,24 +2874,21 @@ h1 em, h2 em {
 
 /* Letter Message View Card */
 .letter-card {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 20;
-  padding: clamp(16px, 4vw, 28px);
+  padding: clamp(16px, 4vw, 24px);
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 1.6vh, 14px);
   border: 1px solid var(--ink);
   background: rgb(250, 254, 255); /* Avoid backdrop filters for performance */
   box-shadow: 6px 6px 0 rgba(79, 210, 255, 0.4);
   width: 100%;
-  max-width: 640px;
-  align-self: center;
-  flex-shrink: 0;
+  height: 100%;
   opacity: 0;
   transform: scale(0.98);
   transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
-  margin-top: 10px;
-  margin-bottom: 24px;
+  overflow: hidden; /* Lock parent, scroll content child */
 }
 
 .letter-card.is-visible {
@@ -2829,12 +2897,23 @@ h1 em, h2 em {
 }
 
 .letter-card__top {
+  flex: 0 0 auto;
   display: flex;
   justify-content: space-between;
   gap: 10px;
   font: 600 6.5px var(--mono);
   letter-spacing: 0.08em;
   opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+.letter-card__scroll-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  margin-bottom: 12px;
+  overscroll-behavior: contain;
 }
 
 .letter-copy {
@@ -2860,18 +2939,15 @@ h1 em, h2 em {
   font: 400 clamp(16px, 4.5vw, 22px) var(--display);
   text-transform: uppercase;
   margin-top: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 /* --- Sticky Action Bar for Letter View --- */
 .letter-actions {
-  position: sticky;
-  bottom: 0;
-  left: 0;
+  flex: 0 0 auto;
   width: 100%;
-  background: rgb(250, 254, 255); /* Avoid backdrop filters for performance */
-  padding: 12px 0;
-  margin-top: 20px;
+  background: rgb(250, 254, 255);
+  padding: 12px 0 0 0;
   z-index: 10;
   border-top: 1px solid rgba(0, 159, 227, 0.15);
   display: flex;

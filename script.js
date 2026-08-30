@@ -2346,88 +2346,68 @@ const letterScene = {
     this.flowerBg.classList.add("is-visible");
 
     const isDesktop = window.innerWidth >= 768;
-    const count = isDesktop ? 72 : 48; // Significantly increased flower count
-    
-    // Calculate envelope center relative to flowerBg viewport coords
-    const envRect = this.envelope ? this.envelope.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
-    const bgRect = this.flowerBg.getBoundingClientRect();
-    const centerX = envRect.left + envRect.width / 2 - bgRect.left;
-    const centerY = envRect.top + envRect.height / 2 - bgRect.top;
+    const cols = isDesktop ? 6 : 4;
+    const rows = isDesktop ? 5 : 6;
+    const count = cols * rows;
 
     const fragment = document.createDocumentFragment();
     const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    for (let i = 0; i < count; i++) {
-      const fl = document.createElement("img");
-      fl.src = "assets/forget-me-not.png";
-      fl.className = "bg-flower";
-      fl.alt = "";
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const fl = document.createElement("img");
+        fl.src = "assets/forget-me-not.png";
+        fl.className = "bg-flower";
+        fl.alt = "";
 
-      // Distribute in 3 concentric ring bands to cover inner, middle, and outer viewport
-      const ring = i % 3;
-      const angle = (i * (Math.PI * 2)) / (count / 3) + (i * 0.12);
-      
-      let radiusX, radiusY;
-      if (ring === 0) {
-        radiusX = 12 + (i % 3) * 6;
-        radiusY = 12 + (i % 3) * 6;
-      } else if (ring === 1) {
-        radiusX = 30 + (i % 3) * 8;
-        radiusY = 30 + (i % 3) * 8;
-      } else {
-        radiusX = 52 + (i % 4) * 12;
-        radiusY = 52 + (i % 4) * 12;
-      }
+        // Staggered grid distribution
+        const shiftX = (r % 2 === 0) ? 0 : (50 / cols);
+        let x = ((c + 0.5) * (100 / cols) + shiftX) % 100;
+        let y = (r + 0.5) * (100 / rows);
 
-      let x = 50 + Math.cos(angle) * radiusX;
-      let y = 50 + Math.sin(angle) * radiusY;
+        // Clamp to safe margins
+        x = Math.max(4, Math.min(96, x));
+        y = Math.max(4, Math.min(96, y));
 
-      // Clamp properly near the screen edges
-      x = Math.max(2, Math.min(98, x));
-      y = Math.max(2, Math.min(98, y));
+        const sizeIndex = (c + r) % 3;
+        const baseSize = isDesktop ? 70 : 46;
+        const size = baseSize + sizeIndex * 15;
 
-      const isLarge = i % 3 === 0;
-      const baseSize = isLarge ? (isDesktop ? 150 : 100) : (isDesktop ? 70 : 48);
-      const size = Math.round(baseSize * (0.8 + (i % 4) * 0.15));
+        fl.style.width = size + "px";
+        fl.style.height = "auto";
+        fl.style.left = x.toFixed(1) + "%";
+        fl.style.top = y.toFixed(1) + "%";
 
-      fl.style.width = size + "px";
-      fl.style.height = "auto";
-      fl.style.left = x + "%";
-      fl.style.top = y + "%";
+        const rot = ((c * 30) + (r * 45)) % 360;
+        const finalOpacity = (0.2 + ((c + r) % 3) * 0.08).toFixed(2);
 
-      const rot = Math.round(Math.random() * 360);
-      // Soft opacities (0.25 to 0.55) so they stay beautiful and dense
-      const finalOpacity = (0.25 + (i % 4) * 0.1).toFixed(2);
+        // Calculate outward sequential pop delay based on center distance
+        const dx = x - 50;
+        const dy = y - 50;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const delay = dist * 12;
 
-      if (isReduced) {
-        fl.style.setProperty("--rot", rot + "deg");
-        fl.style.opacity = finalOpacity;
-        fl.classList.add("bg-flower--reduced");
-      } else {
-        const destX = (x / 100) * bgRect.width;
-        const destY = (y / 100) * bgRect.height;
-        const tx = centerX - destX;
-        const ty = centerY - destY;
-
-        fl.style.setProperty("--tx", tx + "px");
-        fl.style.setProperty("--ty", ty + "px");
-        fl.style.setProperty("--rot", rot + "deg");
-        
-        // Stagger stagger delay between 30ms and 70ms
-        const delay = 30 + (i * 35) % 40; 
-        fl.style.animationDelay = delay + "ms";
-        fl.classList.add("bg-flower--animate");
-
-        // Clean up will-change after animation
-        fl.addEventListener("animationend", () => {
-          fl.style.willChange = "auto";
-          fl.style.animation = "none";
-          fl.style.transform = `translate(0, 0) scale(1) rotate(${rot}deg)`;
+        if (isReduced) {
+          fl.style.setProperty("--rot", rot + "deg");
+          fl.style.setProperty("--op", finalOpacity);
           fl.style.opacity = finalOpacity;
-        }, { once: true });
-      }
+          fl.classList.add("bg-flower--reduced");
+        } else {
+          fl.style.setProperty("--rot", rot + "deg");
+          fl.style.setProperty("--op", finalOpacity);
+          fl.style.animationDelay = Math.round(delay) + "ms";
+          fl.classList.add("bg-flower--grid-animate");
 
-      fragment.appendChild(fl);
+          fl.addEventListener("animationend", () => {
+            fl.style.willChange = "auto";
+            fl.style.animation = "none";
+            fl.style.transform = `scale(1) rotate(${rot}deg)`;
+            fl.style.opacity = finalOpacity;
+          }, { once: true });
+        }
+
+        fragment.appendChild(fl);
+      }
     }
 
     this.flowerBg.appendChild(fragment);
@@ -2437,10 +2417,11 @@ const letterScene = {
     this.messageView.hidden = false;
     this.messageView.classList.add("is-visible");
 
-    const sceneEl = this.messageView.closest(".scene");
-    if (sceneEl) {
+    // Reset inner scrollable content scroll position to top
+    const scrollContent = this.messageView.querySelector(".letter-card__scroll-content");
+    if (scrollContent) {
       requestAnimationFrame(() => {
-        sceneEl.scrollTop = 0;
+        scrollContent.scrollTop = 0;
       });
     }
 
