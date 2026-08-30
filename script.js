@@ -141,7 +141,7 @@ const soundSystem = {
   ambientAudio: null,
   interfaceAudio: null,
   audioBtn: null,
-  enabled: false,
+  enabled: true,
   unlocked: false,
 
   init() {
@@ -151,6 +151,8 @@ const soundSystem = {
 
     if (this.audioBtn) {
       this.audioBtn.addEventListener("click", () => this.toggleAudio());
+      this.audioBtn.setAttribute("aria-pressed", "true");
+      this.audioBtn.textContent = "AUDIO / ON";
     }
 
     const unlock = () => {
@@ -2224,19 +2226,17 @@ const letterScene = {
   envelope: null,
   container: null,
   messageView: null,
-  flowerContainer: null,
   flowerBg: null,
   copyEl: null,
   continueBtn: null,
   isOpened: false,
   timers: [],
-  flowers: [],
+  resizeTimeout: null,
 
   init() {
     this.envelope = $("#mechaEnvelope");
     this.container = $("#envelopeContainer");
     this.messageView = $("#letterMessageView");
-    this.flowerContainer = $("#flowerContainer");
     this.flowerBg = $("#letterFlowerBg");
     this.copyEl = $("#letterCopy");
     this.continueBtn = $("#letterContinue");
@@ -2258,6 +2258,14 @@ const letterScene = {
         sceneManager.advanceTo("response");
       });
     }
+
+    window.addEventListener("resize", () => {
+      if (!this.isOpened) return;
+      clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = setTimeout(() => {
+        this.createBackgroundFlowers();
+      }, 150);
+    });
   },
 
   openEnvelope() {
@@ -2278,75 +2286,19 @@ const letterScene = {
 
   spawnFlowers() {
     soundSystem.playInterface();
-    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const numSmall = isReduced ? 10 : 40;
-    const numLarge = isReduced ? 3 : 8;
     
-    const rect = this.envelope.getBoundingClientRect();
-    const startX = rect.left + rect.width / 2;
-    const startY = rect.top + rect.height / 2;
-    
-    // Spawn small flowers
-    for(let i = 0; i < numSmall; i++) {
-      this.createFlower(startX, startY, false, i);
-    }
-    // Spawn large foreground flowers
-    for(let i = 0; i < numLarge; i++) {
-      this.createFlower(startX, startY, true, i);
-    }
+    // Populate background flowers using DocumentFragment and preset positions
+    this.createBackgroundFlowers();
 
-    // After flowers cover the screen, show message & background flowers
+    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const showDelay = isReduced ? 300 : 1000;
+    
     this.addTimer(() => {
       if (this.container) {
         this.container.style.display = "none";
       }
-      this.createBackgroundFlowers();
       this.showMessage();
-      this.fadeFlowers();
-    }, 2500);
-  },
-
-  createFlower(x, y, isLarge, index) {
-    const fl = document.createElement("img");
-    fl.src = "assets/forget-me-not.png";
-    fl.className = "flower-particle";
-    fl.alt = "";
-    
-    const size = isLarge ? 150 + Math.random() * 150 : 20 + Math.random() * 40;
-    fl.style.width = size + "px";
-    
-    const angle = Math.random() * Math.PI * 2;
-    const dist = isLarge ? (Math.random() * window.innerWidth * 0.4) : (Math.random() * window.innerWidth * 0.8);
-    
-    const destX = (window.innerWidth / 2) + Math.cos(angle) * dist - size/2;
-    const destY = (window.innerHeight / 2) + Math.sin(angle) * dist - size/2;
-    
-    const rot = Math.random() * 360;
-    const delay = index * 30;
-    
-    if (isLarge) {
-      fl.style.filter = "blur(" + (Math.random() * 3 + 1) + "px)";
-      fl.style.zIndex = 6;
-    } else {
-      fl.style.zIndex = 4;
-    }
-
-    fl.style.left = (x - size/2) + "px";
-    fl.style.top = (y - size/2) + "px";
-    fl.style.transform = "scale(0) rotate(0deg)";
-    fl.style.opacity = "0";
-    
-    this.flowerContainer.appendChild(fl);
-    this.flowers.push(fl);
-
-    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = isReduced ? 0 : (1000 + Math.random() * 1000);
-
-    this.addTimer(() => {
-      fl.style.transition = `transform ${duration}ms cubic-bezier(0.25, 1, 0.5, 1), opacity ${duration}ms linear`;
-      fl.style.transform = `translate(${destX - (x - size/2)}px, ${destY - (y - size/2)}px) scale(1) rotate(${rot}deg)`;
-      fl.style.opacity = isLarge ? "0.85" : "0.7";
-    }, delay);
+    }, showDelay);
   },
 
   createBackgroundFlowers() {
@@ -2354,60 +2306,85 @@ const letterScene = {
     this.flowerBg.innerHTML = "";
     this.flowerBg.classList.add("is-visible");
 
-    // Spawn 16 background flowers
-    const count = 16;
+    const isDesktop = window.innerWidth >= 768;
+    const count = isDesktop ? 36 : 24;
+    
+    // Calculate envelope center relative to flowerBg viewport coords
+    const envRect = this.envelope ? this.envelope.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
+    const bgRect = this.flowerBg.getBoundingClientRect();
+    const centerX = envRect.left + envRect.width / 2 - bgRect.left;
+    const centerY = envRect.top + envRect.height / 2 - bgRect.top;
+
+    const fragment = document.createDocumentFragment();
+    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     for (let i = 0; i < count; i++) {
       const fl = document.createElement("img");
       fl.src = "assets/forget-me-not.png";
       fl.className = "bg-flower";
       fl.alt = "";
 
-      fl.style.left = (Math.random() * 100) + "%";
-      fl.style.top = (Math.random() * 100) + "%";
+      // Deterministic ring distribution
+      const angle = (i * (Math.PI * 2)) / count + (i * 0.15);
+      const radiusX = i % 2 === 0 ? (35 + (i % 3) * 15) : (18 + (i % 3) * 10);
+      const radiusY = i % 2 === 0 ? (35 + (i % 3) * 15) : (18 + (i % 3) * 10);
       
-      const size = 30 + Math.random() * 50;
+      let x = 50 + Math.cos(angle) * radiusX;
+      let y = 50 + Math.sin(angle) * radiusY;
+
+      // Clamp to boundaries
+      x = Math.max(5, Math.min(95, x));
+      y = Math.max(5, Math.min(95, y));
+
+      const isLarge = i % 4 === 0;
+      const baseSize = isLarge ? (isDesktop ? 130 : 90) : (isDesktop ? 60 : 42);
+      const size = Math.round(baseSize * (0.85 + (i % 4) * 0.1));
+
       fl.style.width = size + "px";
       fl.style.height = "auto";
+      fl.style.left = x + "%";
+      fl.style.top = y + "%";
 
-      const rot = Math.random() * 360;
-      fl.style.transform = `rotate(${rot}deg)`;
-      fl.style.opacity = (0.1 + Math.random() * 0.15).toFixed(2);
+      const rot = Math.round(Math.random() * 360);
+      const finalOpacity = (0.2 + (i % 3) * 0.1).toFixed(2);
 
-      if (i % 4 === 0) {
-        fl.classList.add("bg-flower--drifting");
-        fl.style.animationDelay = `-${Math.random() * 20}s`;
-        fl.style.animationDuration = `${15 + Math.random() * 15}s`;
+      if (isReduced) {
+        fl.style.setProperty("--rot", rot + "deg");
+        fl.style.opacity = finalOpacity;
+        fl.classList.add("bg-flower--reduced");
+      } else {
+        const destX = (x / 100) * bgRect.width;
+        const destY = (y / 100) * bgRect.height;
+        const tx = centerX - destX;
+        const ty = centerY - destY;
+
+        fl.style.setProperty("--tx", tx + "px");
+        fl.style.setProperty("--ty", ty + "px");
+        fl.style.setProperty("--rot", rot + "deg");
+        
+        const delay = 30 + (i * 35) % 40; 
+        fl.style.animationDelay = delay + "ms";
+        fl.classList.add("bg-flower--animate");
+
+        // Clean up will-change after animation
+        fl.addEventListener("animationend", () => {
+          fl.style.willChange = "auto";
+          fl.style.animation = "none";
+          fl.style.transform = `translate(0, 0) scale(1) rotate(${rot}deg)`;
+          fl.style.opacity = finalOpacity;
+        }, { once: true });
       }
 
-      this.flowerBg.appendChild(fl);
+      fragment.appendChild(fl);
     }
-  },
 
-  fadeFlowers() {
-    const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const fadeDuration = isReduced ? 0 : 2000;
-    
-    this.addTimer(() => {
-      this.flowers.forEach(fl => {
-        fl.style.transition = `opacity ${fadeDuration}ms linear, transform ${fadeDuration}ms linear`;
-        fl.style.opacity = "0";
-        fl.style.transform += " translateY(50px) rotate(20deg)";
-      });
-      // Physically remove foreground flowers
-      this.addTimer(() => {
-        this.flowers.forEach(fl => {
-          if (fl.parentNode) fl.parentNode.removeChild(fl);
-        });
-        this.flowers = [];
-      }, fadeDuration + 100);
-    }, 1000);
+    this.flowerBg.appendChild(fragment);
   },
 
   showMessage() {
     this.messageView.hidden = false;
     this.messageView.classList.add("is-visible");
 
-    // Reset scene scroll position to top
     const sceneEl = this.messageView.closest(".scene");
     if (sceneEl) {
       requestAnimationFrame(() => {
@@ -2415,7 +2392,6 @@ const letterScene = {
       });
     }
 
-    // Set focus safely
     this.messageView.setAttribute("tabindex", "-1");
     this.messageView.focus({ preventScroll: true });
 
@@ -2453,18 +2429,22 @@ const letterScene = {
 
   exit() {
     this.clearTimers();
-    if (this.flowerContainer) {
-      this.flowerContainer.innerHTML = "";
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = null;
     }
     if (this.flowerBg) {
       this.flowerBg.innerHTML = "";
       this.flowerBg.classList.remove("is-visible");
     }
-    this.flowers = [];
   },
 
   reset() {
     this.clearTimers();
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = null;
+    }
     this.isOpened = false;
     if (this.envelope) {
       this.envelope.classList.remove("is-open");
@@ -2483,9 +2463,6 @@ const letterScene = {
     if (this.copyEl) {
       this.copyEl.innerHTML = "";
     }
-    if (this.flowerContainer) {
-      this.flowerContainer.innerHTML = "";
-    }
     if (this.flowerBg) {
       this.flowerBg.innerHTML = "";
       this.flowerBg.classList.remove("is-visible");
@@ -2493,9 +2470,9 @@ const letterScene = {
     if (this.continueBtn) {
       this.continueBtn.disabled = false;
     }
-    this.flowers = [];
   }
 };
+
 
 
 /* --------------------------------------------------------------------------
