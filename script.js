@@ -149,6 +149,17 @@ const soundSystem = {
     this.interfaceAudio = $("#interfaceAudio");
     this.audioBtn = $("#audioButton");
 
+    if (this.ambientAudio) {
+      this.ambientAudio.volume = 1.0;
+      this.ambientAudio.play().then(() => {
+        this.unlocked = true;
+      }).catch(() => {});
+    }
+
+    if (this.interfaceAudio) {
+      this.interfaceAudio.volume = 0.25;
+    }
+
     if (this.audioBtn) {
       this.audioBtn.addEventListener("click", () => this.toggleAudio());
       this.audioBtn.setAttribute("aria-pressed", "true");
