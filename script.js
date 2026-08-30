@@ -143,6 +143,7 @@ const soundSystem = {
   audioBtn: null,
   enabled: true,
   unlocked: false,
+  _fadeRaf: null,
 
   init() {
     this.ambientAudio = $("#ambientAudio");
@@ -150,10 +151,8 @@ const soundSystem = {
     this.audioBtn = $("#audioButton");
 
     if (this.ambientAudio) {
-      this.ambientAudio.volume = 1.0;
-      this.ambientAudio.play().then(() => {
-        this.unlocked = true;
-      }).catch(() => {});
+      this.ambientAudio.volume = 0;
+      this.ambientAudio.loop = true;
     }
 
     if (this.interfaceAudio) {
@@ -166,18 +165,41 @@ const soundSystem = {
       this.audioBtn.textContent = "AUDIO / ON";
     }
 
-    const unlock = () => {
-      if (!this.unlocked) {
-        this.unlocked = true;
-        if (this.enabled && this.ambientAudio) {
-          this.ambientAudio.play().catch(() => {});
-        }
+    // Unlock and start ambient on first user interaction
+    const unlock = (e) => {
+      if (this.unlocked) return;
+      this.unlocked = true;
+      if (this.enabled && this.ambientAudio) {
+        this.ambientAudio.volume = 0;
+        this.ambientAudio.play().then(() => {
+          this._fadeInAmbient();
+        }).catch(() => {});
       }
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
     };
-    window.addEventListener("pointerdown", unlock, { passive: true });
-    window.addEventListener("keydown", unlock, { passive: true });
+    window.addEventListener("pointerdown", unlock, { passive: true, once: true });
+    window.addEventListener("keydown", unlock, { passive: true, once: true });
+    window.addEventListener("touchstart", unlock, { passive: true, once: true });
+  },
+
+  _fadeInAmbient() {
+    if (!this.ambientAudio) return;
+    const target = 1.0;
+    const step = () => {
+      if (!this.ambientAudio || !this.enabled) return;
+      const current = this.ambientAudio.volume;
+      if (current < target - 0.01) {
+        this.ambientAudio.volume = Math.min(target, current + 0.02);
+        this._fadeRaf = requestAnimationFrame(step);
+      } else {
+        this.ambientAudio.volume = target;
+        this._fadeRaf = null;
+      }
+    };
+    if (this._fadeRaf) cancelAnimationFrame(this._fadeRaf);
+    this._fadeRaf = requestAnimationFrame(step);
   },
 
   toggleAudio() {
@@ -188,21 +210,27 @@ const soundSystem = {
     }
     if (this.enabled) {
       this.playAmbient();
-      this.playInterface();
     } else {
       this.stopAmbient();
     }
   },
 
   playAmbient() {
-    if (this.enabled && this.ambientAudio) {
-      this.ambientAudio.play().catch(() => {});
+    if (this.enabled && this.ambientAudio && this.unlocked) {
+      this.ambientAudio.play().then(() => {
+        this._fadeInAmbient();
+      }).catch(() => {});
     }
   },
 
   stopAmbient() {
+    if (this._fadeRaf) {
+      cancelAnimationFrame(this._fadeRaf);
+      this._fadeRaf = null;
+    }
     if (this.ambientAudio) {
       this.ambientAudio.pause();
+      this.ambientAudio.volume = 0;
     }
   },
 
@@ -2318,7 +2346,7 @@ const letterScene = {
     this.flowerBg.classList.add("is-visible");
 
     const isDesktop = window.innerWidth >= 768;
-    const count = isDesktop ? 36 : 24;
+    const count = isDesktop ? 72 : 48; // Significantly increased flower count
     
     // Calculate envelope center relative to flowerBg viewport coords
     const envRect = this.envelope ? this.envelope.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
@@ -2335,21 +2363,32 @@ const letterScene = {
       fl.className = "bg-flower";
       fl.alt = "";
 
-      // Deterministic ring distribution
-      const angle = (i * (Math.PI * 2)) / count + (i * 0.15);
-      const radiusX = i % 2 === 0 ? (35 + (i % 3) * 15) : (18 + (i % 3) * 10);
-      const radiusY = i % 2 === 0 ? (35 + (i % 3) * 15) : (18 + (i % 3) * 10);
+      // Distribute in 3 concentric ring bands to cover inner, middle, and outer viewport
+      const ring = i % 3;
+      const angle = (i * (Math.PI * 2)) / (count / 3) + (i * 0.12);
       
+      let radiusX, radiusY;
+      if (ring === 0) {
+        radiusX = 12 + (i % 3) * 6;
+        radiusY = 12 + (i % 3) * 6;
+      } else if (ring === 1) {
+        radiusX = 30 + (i % 3) * 8;
+        radiusY = 30 + (i % 3) * 8;
+      } else {
+        radiusX = 52 + (i % 4) * 12;
+        radiusY = 52 + (i % 4) * 12;
+      }
+
       let x = 50 + Math.cos(angle) * radiusX;
       let y = 50 + Math.sin(angle) * radiusY;
 
-      // Clamp to boundaries
-      x = Math.max(5, Math.min(95, x));
-      y = Math.max(5, Math.min(95, y));
+      // Clamp properly near the screen edges
+      x = Math.max(2, Math.min(98, x));
+      y = Math.max(2, Math.min(98, y));
 
-      const isLarge = i % 4 === 0;
-      const baseSize = isLarge ? (isDesktop ? 130 : 90) : (isDesktop ? 60 : 42);
-      const size = Math.round(baseSize * (0.85 + (i % 4) * 0.1));
+      const isLarge = i % 3 === 0;
+      const baseSize = isLarge ? (isDesktop ? 150 : 100) : (isDesktop ? 70 : 48);
+      const size = Math.round(baseSize * (0.8 + (i % 4) * 0.15));
 
       fl.style.width = size + "px";
       fl.style.height = "auto";
@@ -2357,7 +2396,8 @@ const letterScene = {
       fl.style.top = y + "%";
 
       const rot = Math.round(Math.random() * 360);
-      const finalOpacity = (0.2 + (i % 3) * 0.1).toFixed(2);
+      // Soft opacities (0.25 to 0.55) so they stay beautiful and dense
+      const finalOpacity = (0.25 + (i % 4) * 0.1).toFixed(2);
 
       if (isReduced) {
         fl.style.setProperty("--rot", rot + "deg");
@@ -2373,6 +2413,7 @@ const letterScene = {
         fl.style.setProperty("--ty", ty + "px");
         fl.style.setProperty("--rot", rot + "deg");
         
+        // Stagger stagger delay between 30ms and 70ms
         const delay = 30 + (i * 35) % 40; 
         fl.style.animationDelay = delay + "ms";
         fl.classList.add("bg-flower--animate");
